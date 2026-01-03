@@ -12,11 +12,11 @@
   <img
     src="/logo.png"
     alt="Metro Spotify"
-    class="h-32 w-32 object-contain absolute top-[-2rem] left-[-3rem]"
+    class="h-32 w-32 object-contain absolute top-[-1rem] left-[-3rem]"
   />
 
   <div class="flex items-center gap-4 h-[10%] px-4">
-    <span class="text-[6rem] font-[200] whitespace-nowrap pl-16">spotify</span>
+    <span class="text-[6rem] font-[200] whitespace-nowrap pl-16 mt-6">spotify</span>
   </div>
   <div class="flex-1 flex flex-col items-start justify-center px-4">
     <div class="max-w-md">

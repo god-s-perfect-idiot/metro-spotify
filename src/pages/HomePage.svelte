@@ -4,9 +4,14 @@
   import Icon from "@iconify/svelte";
 
   export let isExiting = false;
+  
+  let internalIsExiting = false;
 
   $: textClass = $textColorClassStore;
   $: accentColor = $accentColorStore;
+  
+  // Use internal exit state if we have it, otherwise use the prop
+  $: shouldShowExit = internalIsExiting || isExiting;
 
   const menuItems = [
     {
@@ -55,23 +60,28 @@
   ];
 
   function handleItemClick(route) {
-    router.goto(route);
+    // Trigger exit animation, then navigate after animation completes
+    internalIsExiting = true;
+    setTimeout(() => {
+      router.goto(route);
+      internalIsExiting = false;
+    }, 200); // Match the animation duration
   }
 </script>
 
 <div class="page-holder">
   <div
     class="flex flex-col w-full font-[400] h-screen page overflow-x-hidden"
-    class:page-exit={isExiting}
+    class:page-exit={shouldShowExit}
   >
   <img
     src="/logo.png"
     alt="Metro Spotify"
-    class="h-32 w-32 object-contain absolute top-[-2rem] left-[-3rem]"
+    class="h-32 w-32 object-contain absolute top-[-1rem] left-[-3rem]"
   />
 
   <div class="flex items-center gap-4 h-[10%] px-4">
-    <span class="text-[6rem] font-[200] whitespace-nowrap pl-16">spotify</span>
+    <span class="text-[6rem] font-[200] whitespace-nowrap pl-16 mt-6">spotify</span>
   </div>
 
   <div

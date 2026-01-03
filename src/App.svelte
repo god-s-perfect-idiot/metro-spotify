@@ -22,6 +22,7 @@
   let spotifyPageRef = null;
   let showSetup = false;
   let isExiting = false;
+  let homePageIsExiting = false;
   let authPageRef = null;
   
   $: route = $currentRoute;
@@ -31,14 +32,23 @@
   let previousRoute = route;
   let isExitingBottomBar = false;
   
-  // Track page exit animation for auth pages
+  // Track page exit animation for auth pages and HomePage
   $: {
     if (previousRoute !== route) {
-      // Trigger exit animation when route changes
-      isExiting = true;
-      setTimeout(() => {
-        isExiting = false;
-      }, 200);
+      // Reset isExiting immediately so new pages don't get exit animation
+      isExiting = false;
+      
+      // Check if we're leaving HomePage to go to an inner page
+      const wasOnHomePage = previousRoute === '/' || previousRoute === '';
+      const isInnerPage = route !== '/' && route !== '' && !route.includes('callback');
+      
+      if (wasOnHomePage && isInnerPage) {
+        // Trigger HomePage exit animation
+        homePageIsExiting = true;
+        setTimeout(() => {
+          homePageIsExiting = false;
+        }, 200);
+      }
       
       bottomBarExpanded.set(false);
       
@@ -110,9 +120,11 @@
     if (window.Capacitor) {
       CapacitorApp.addListener('appUrlOpen', (data) => {
         try {
+          console.log('🔗 Deep link received:', data.url);
           const url = new URL(data.url);
-          if (url.pathname.includes('callback') || url.href.includes('callback')) {
-            const search = url.search || (url.hash ? '?' + url.hash.substring(1) : '');
+          if (url.href.includes('callback')) {
+            // Extract query parameters from the deep link
+            const search = url.search || '';
             router.goto('/spotify/callback' + search);
           }
         } catch (e) {
@@ -175,9 +187,9 @@
       {:else if route.startsWith('/artist/')}
         <ArtistTracksPage {isExiting} />
       {:else if route === '/' || route === ''}
-        <HomePage {isExiting} />
+        <HomePage isExiting={homePageIsExiting} />
       {:else}
-        <HomePage {isExiting} />
+        <HomePage isExiting={homePageIsExiting} />
       {/if}
     </div>
     

@@ -7,6 +7,7 @@
 	import LoginPage from './spotify/LoginPage.svelte';
 	import { getAuthUrl } from '../lib/spotify-config.js';
 	import { addToast } from '../store/toast.js';
+	import { Browser } from '@capacitor/browser';
 	
 	export let isExiting = false;
 	
@@ -58,8 +59,14 @@
 	
 	async function login() {
 		const authUrl = getAuthUrl();
-		// Always use window.location.href to navigate in the same tab
-		window.location.href = authUrl;
+		
+		// For native apps, use Browser plugin to open externally so deep links work
+		if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+			await Browser.open({ url: authUrl });
+		} else {
+			// For web, navigate in the same tab
+			window.location.href = authUrl;
+		}
 	}
 	
 	export function showSetupPage() {

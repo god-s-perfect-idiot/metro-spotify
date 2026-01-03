@@ -113,7 +113,7 @@
 	}
 </script>
 
-<div class="status-bar {textColorClass}" style="background-color: transparent;">
+<div class="status-bar {textColorClass}">
 	<div class="status-left">
 		<div class="status-item wifi-icon" title="Network: {isOnline ? connectionType : 'Offline'}">
 			<Icon icon='{getNetworkIcon()}' width="22" height="22" />
@@ -141,7 +141,7 @@
 				<div class="w-[3.5px] h-[6px] bg-white !border-l-[1px] !border-[#000000]" />
 			</div>
 		{/if}
-		<span class="font-[400] text-[15px]">{currentTime}</span>
+		<span class="font-[200] text-sm">{currentTime}</span>
 	</div>
 </div>
 
@@ -152,10 +152,10 @@
 
 	.status-bar {
 		position: fixed;
-		top: 0;
+		top: 0.25rem;
 		left: 0;
 		right: 0;
-		z-index: 9999;
+		z-index: 99999;
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
@@ -168,6 +168,7 @@
 		width: 100%;
 		box-sizing: border-box;
 		height: 24px; /* Standard Android status bar height */
+		background-color: #000000;
 	}
 
 	.status-left {
