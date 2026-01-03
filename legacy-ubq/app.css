@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+    font-family: "selawik";
+    src: url("/selawk.ttf");
+}
+
+@font-face {
+    font-family: "selawik bold";
+    src: url("/selawkb.ttf");
+}
+
+@font-face {
+    font-family: "selawik light";
+    src: url("/selawkl.ttf");
+}
+
+html {
+    overscroll-behavior-y: none;
+    overscroll-behavior: none;
+}
+
+body {
+    font-family: "Noto Sans";
+    font-weight: 300;
+    font-size: 1.5rem;
+    background-color: var(--body-bg-color, #000);
+    color: var(--body-text-color, #fff);
+    overscroll-behavior-y: none;
+    overscroll-behavior: none;
+}
+
+.page-holder {
+    perspective: 1000px;
+}
+.page {
+    transform-origin: left;
+    animation: flipIn 0.2s ease-out;
+}
+.page-exit {
+    animation: flipOut 0.2s ease-out forwards;
+}
+.bottom-bar {
+    animation: creep-in 0.2s ease-out forwards;
+}
+.bottom-bar-exit {
+    animation: creep-out 0.2s ease-out forwards;
+}
+.btn {
+    animation: button-overshoot 0.5s ease-out forwards;
+}
+.btn-animate {
+    transform: translateY(120%);
+    opacity: 0;
+}
+
+.btn-animate.animate {
+    animation: button-overshoot 0.5s ease-out forwards;
+    opacity: 1;
+}
+@keyframes button-overshoot {
+    0% {
+        transform: translateY(120%);
+    }
+    70% {
+        transform: translateY(-20%);
+    }
+    100% {
+        transform: translateY(0);
+    }
+}
+@keyframes creep-in {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+@keyframes creep-out {
+    from {
+        transform: translateY(0);
+    }
+    to {
+        transform: translateY(100%);
+    }
+}
+@keyframes flipIn {
+    from {
+        transform: rotateY(90deg);
+        opacity: 0;
+    }
+    to {
+        transform: rotateY(0);
+        opacity: 1;
+    }
+}
+@keyframes flipOut {
+    from {
+        transform: rotateY(0) scaleY(1);
+        opacity: 1;
+    }
+    to {
+        transform: rotateY(-90deg) scaleY(1.5);
+        opacity: 0;
+    }
+}
