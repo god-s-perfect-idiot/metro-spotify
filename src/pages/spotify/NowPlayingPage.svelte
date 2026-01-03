@@ -27,10 +27,9 @@
 	class="flex flex-col pt-4 w-full font-[400] h-screen page overflow-x-hidden"
 	class:page-exit={isExiting}
 >
-	<span class="text-6xl font-[300] h-[10%] px-4">spotify</span>
+<span class="text-lg font-[500] h-fit px-4 uppercase">spotify</span>
+	<span class="text-6xl font-[300] h-auto py-1 px-4">now playing</span>
 	<div class="flex flex-col gap-2 mb-16 overflow-x-hidden px-4">
-		<span class="text-4xl font-[300]">now playing</span>
-
 		<!-- Album Art -->
 		<div class="flex w-72 h-72 justify-center items-center mt-4">
 			{#if nowPlayingTrack?.album?.images}

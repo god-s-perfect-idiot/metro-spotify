@@ -8,6 +8,8 @@
 	import { getAuthUrl } from '../lib/spotify-config.js';
 	import { addToast } from '../store/toast.js';
 	
+	export let isExiting = false;
+	
 	let isInitializing = true;
 	let showSetup = false;
 	let spotifyClientId = '';
@@ -80,15 +82,21 @@
 </script>
 
 {#if viewState === 'initializing'}
-	<InitializingPage isExiting={false} />
+	<div class="page-holder">
+		<InitializingPage {isExiting} />
+	</div>
 {:else if viewState === 'setup'}
-	<SetupPage
-		isExiting={false}
-		bind:spotifyClientId
-		bind:spotifyClientSecret
-		onConnect={connectSpotify}
-	/>
+	<div class="page-holder">
+		<SetupPage
+			{isExiting}
+			bind:spotifyClientId
+			bind:spotifyClientSecret
+			onConnect={connectSpotify}
+		/>
+	</div>
 {:else if viewState === 'login'}
-	<LoginPage isExiting={false} onSetupClick={showSetupPage} />
+	<div class="page-holder">
+		<LoginPage {isExiting} onSetupClick={showSetupPage} />
+	</div>
 {/if}
 

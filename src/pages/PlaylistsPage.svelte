@@ -1,0 +1,131 @@
+<script>
+	import { router } from '../lib/router.js';
+	import { onMount } from 'svelte';
+	import { browser } from '../lib/browser.js';
+	import { accountsStore } from '../store/accounts.js';
+	import { musicStore } from '../store/music.js';
+	import { addToast } from '../store/toast.js';
+	
+	// Page components
+	import PlaylistsPage from './spotify/PlaylistsPage.svelte';
+
+	let isExiting = false;
+	let isLoading = true;
+	let playlists = [];
+	let spotifyApi = null;
+
+	// Initialize Spotify on page load
+	onMount(async () => {
+		if (browser) {
+			accountsStore.loadFromStorage();
+			await initializeSpotify();
+		}
+	});
+
+	async function initializeSpotify() {
+		const hasToken = accountsStore.hasValidToken('spotify');
+		
+		if (hasToken) {
+			const token = accountsStore.getAccessToken('spotify');
+			await initializeSpotifyApi(token);
+			await loadAvailableDevices();
+			await loadPlaylists();
+		} else {
+			isLoading = false;
+			// Redirect to home if not authenticated
+			router.goto('/');
+		}
+	}
+
+	async function initializeSpotifyApi(token) {
+		try {
+			// Dynamically import Spotify Web API
+			const { default: SpotifyWebApi } = await import('spotify-web-api-js');
+			spotifyApi = new SpotifyWebApi();
+			spotifyApi.setAccessToken(token);
+			musicStore.setSpotifyApi(spotifyApi);
+		} catch (error) {
+			console.error('Error initializing Spotify API:', error);
+		}
+	}
+
+	async function loadAvailableDevices() {
+		if (!spotifyApi) return;
+
+		try {
+			const devices = await spotifyApi.getMyDevices();
+			const availableDevices = devices.devices || [];
+
+			const metroPlayer = availableDevices.find(
+				(device) => device.name === 'Metro Spotify'
+			);
+
+			if (metroPlayer) {
+				musicStore.setSelectedDeviceId(metroPlayer.id);
+			} else if (availableDevices.length > 0) {
+				musicStore.setSelectedDeviceId(availableDevices[0].id);
+			}
+		} catch (error) {
+			console.error('Error loading devices:', error);
+		}
+	}
+
+	async function loadPlaylists() {
+		if (!spotifyApi) return;
+
+		isLoading = true;
+		try {
+			let allPlaylists = [];
+			let offset = 0;
+			const limit = 50;
+			let hasMore = true;
+
+			while (hasMore) {
+				const response = await spotifyApi.getUserPlaylists({ limit, offset });
+				const fetchedPlaylists = response.items || [];
+
+				if (fetchedPlaylists.length === 0) {
+					hasMore = false;
+				} else {
+					allPlaylists = allPlaylists.concat(fetchedPlaylists);
+					offset += limit;
+
+					if (fetchedPlaylists.length < limit) {
+						hasMore = false;
+					}
+				}
+			}
+
+			playlists = allPlaylists.filter((playlist) => playlist.name && playlist.name.trim() !== '');
+			playlists.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+		} catch (error) {
+			console.error('Error loading playlists:', error);
+			if (error.status === 401) {
+				accountsStore.logout('spotify');
+				router.goto('/');
+			} else {
+				addToast('Failed to load playlists. Please try again.');
+			}
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	function handlePlaylistClick(playlist) {
+		// Navigate to playlist detail page
+		router.goto(`/playlist/${playlist.id}`);
+	}
+
+	// Check if user is authenticated
+	$: isAuthenticated = accountsStore.isAuthenticated('spotify');
+</script>
+
+<div class="page-holder">
+	<PlaylistsPage
+		{isExiting}
+		{isLoading}
+		{playlists}
+		onPlaylistClick={handlePlaylistClick}
+	/>
+</div>
+

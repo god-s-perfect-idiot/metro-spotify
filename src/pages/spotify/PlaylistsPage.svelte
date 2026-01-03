@@ -1,0 +1,89 @@
+<script>
+  import Icon from "@iconify/svelte";
+  import Loader from "../../components/Loader.svelte";
+  import { accentColorStore, textColorClassStore } from "../../utils/theme.js";
+
+  export let isExiting = false;
+  export let isLoading = false;
+  export let playlists = [];
+  export let onPlaylistClick = (playlist) => {};
+
+  $: accentColor = $accentColorStore;
+  $: textClass = $textColorClassStore;
+</script>
+
+<div
+  class="flex flex-col w-full font-[400] h-screen page overflow-x-hidden"
+  class:page-exit={isExiting}
+>
+  <span class="text-lg font-[500] h-fit px-4 uppercase">spotify</span>
+  <span class="text-6xl font-[200] h-auto py-1 px-4">playlists</span>
+  <div
+    class="flex flex-col gap-4 pb-20 mt-6 overflow-y-auto overflow-x-hidden px-4 h-full"
+  >
+    {#if isLoading}
+      <div class="flex flex-col gap-4 items-center justify-center my-24">
+        <Loader />
+      </div>
+    {:else if !isLoading && playlists.length > 0}
+      {#each playlists as playlist}
+        <button
+          class="flex flex-row gap-4 items-center w-full min-w-0"
+          on:click={() => onPlaylistClick(playlist)}
+        >
+          {#if playlist.images && playlist.images.length > 0}
+            <img
+              src={playlist.images[0].url}
+              alt={playlist.name}
+              class="w-16 h-16 object-cover flex-shrink-0"
+            />
+          {:else}
+            <div
+              class="w-16 h-16 rounded-lg bg-gray-700 flex items-center justify-center flex-shrink-0"
+            >
+              <Icon
+                icon="dashicons:playlist-audio"
+                width="32"
+                height="32"
+                class="text-gray-400"
+              />
+            </div>
+          {/if}
+
+          <div class="flex flex-col min-w-0 flex-1 items-start overflow-hidden">
+            <span
+              class="text-2xl text-left font-[300] truncate w-full"
+              title={playlist.name}
+            >
+              {playlist.name}
+            </span>
+            <span
+              class="text-gray-400 text-left text-base font-[300] truncate w-full"
+              title={playlist.description ||
+                `${playlist.tracks?.total || 0} tracks`}
+            >
+              {playlist.description || `${playlist.tracks?.total || 0} tracks`}
+            </span>
+          </div>
+        </button>
+      {/each}
+    {:else if !isLoading}
+      <div class="text-center py-12 mx-4">
+        <Icon
+          icon="dashicons:playlist-audio"
+          width="64"
+          height="64"
+          class="text-gray-500 mb-4"
+        />
+        <h3 class="text-xl font-semibold mb-2 justify-start flex font-[300]">
+          No Playlists Found
+        </h3>
+        <p
+          class="text-gray-400 font-[300] justify-start flex text-left text-lg"
+        >
+          Create playlists on Spotify to see them here.
+        </p>
+      </div>
+    {/if}
+  </div>
+</div>

@@ -6,6 +6,8 @@
   import AuthPage from './pages/AuthPage.svelte';
   import SpotifyPage from './pages/SpotifyPage.svelte';
   import NowPlayingPage from './pages/NowPlayingPage.svelte';
+  import PlaylistsPage from './pages/PlaylistsPage.svelte';
+  import PlaylistTracksPage from './pages/PlaylistTracksPage.svelte';
   import SpotifyCallback from './pages/SpotifyCallback.svelte';
   import StatusBar from './components/StatusBar.svelte';
   import BottomControls from './components/BottomControls.svelte';
@@ -27,12 +29,18 @@
   let previousRoute = route;
   let isExitingBottomBar = false;
   
-  $: shouldShowBottomBar = (route === '/spotify' || route === '/now-playing') && !route.includes('callback');
+  // Track page exit animation for auth pages
   $: {
     if (previousRoute !== route) {
+      // Trigger exit animation when route changes
+      isExiting = true;
+      setTimeout(() => {
+        isExiting = false;
+      }, 200);
+      
       bottomBarExpanded.set(false);
       
-      const hadBottomBar = (previousRoute === '/spotify' || previousRoute === '/now-playing') && !previousRoute.includes('callback');
+      const hadBottomBar = (previousRoute === '/spotify' || previousRoute === '/now-playing' || previousRoute === '/playlists' || previousRoute.startsWith('/playlist/')) && !previousRoute.includes('callback');
       const hasBottomBar = shouldShowBottomBar;
       
       if (hadBottomBar && !hasBottomBar) {
@@ -49,6 +57,8 @@
     }
   }
   
+  $: shouldShowBottomBar = (route === '/spotify' || route === '/now-playing' || route === '/playlists' || route.startsWith('/playlist/')) && !route.includes('callback');
+  
   // Subscribe to stores for bottom bar
   $: isExpanded = $bottomBarExpanded;
   $: isUnmounting = $bottomBarUnmounting;
@@ -61,6 +71,9 @@
   $: viewState = (() => {
     if (route === '/now-playing') {
       return 'now-playing';
+    }
+    if (route === '/playlists' || route.startsWith('/playlist/')) {
+      return 'playlists';
     }
     return 'library';
   })();
@@ -130,7 +143,7 @@
       {#if route.startsWith('/spotify/callback') || route.startsWith('/callback')}
         <SpotifyCallback />
       {:else}
-        <AuthPage bind:this={authPageRef} bind:showSetup />
+        <AuthPage bind:this={authPageRef} bind:showSetup {isExiting} />
       {/if}
     </div>
   {:else}
@@ -148,6 +161,10 @@
         <SpotifyPage bind:this={spotifyPageRef} {isExiting} />
       {:else if route === '/now-playing'}
         <NowPlayingPage {isExiting} />
+      {:else if route === '/playlists'}
+        <PlaylistsPage {isExiting} />
+      {:else if route.startsWith('/playlist/')}
+        <PlaylistTracksPage {isExiting} />
       {:else if route === '/' || route === ''}
         <HomePage {isExiting} />
       {:else}

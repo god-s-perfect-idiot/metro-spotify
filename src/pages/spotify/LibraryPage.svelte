@@ -44,8 +44,8 @@
 			onLetterClick={handleLetterClickWithExit}
 		/>
 	{:else}
-	<span class="text-6xl font-[200] h-[10%] px-4">songs</span>
-		<div class="flex flex-col gap-8 pb-16 mt-6 overflow-y-auto overflow-x-hidden px-4">
+	<span class="text-6xl font-[200] h-auto py-1 px-4">songs</span>
+		<div class="flex flex-col gap-8 pb-20 mt-6 overflow-y-auto overflow-x-hidden px-4 h-full">
 			{#if isLoading}
 				<div class="flex flex-col gap-4 items-center justify-center my-24">
 					<Loader />

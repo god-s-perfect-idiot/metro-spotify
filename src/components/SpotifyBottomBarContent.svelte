@@ -1,7 +1,7 @@
 <script>
 	import Icon from '@iconify/svelte';
 	import { musicStore } from '../store/music.js';
-	import { router } from '../lib/router.js';
+	import { router, currentRoute } from '../lib/router.js';
 	import { App as CapacitorApp } from '@capacitor/app';
 	import { bottomBarExpanded } from '../store/bottomBar.js';
 	
@@ -9,7 +9,7 @@
 	export let showSetup = false;
 	export let isAuthenticated = false;
 	export let nowPlayingTrack = null;
-	export let viewState = 'library'; // 'setup', 'login', 'library', 'now-playing'
+	export let viewState = 'library'; // 'setup', 'login', 'library', 'now-playing', 'playlists'
 	export let onHideSetup = () => {};
 	export let onConnect = () => {};
 	
@@ -44,6 +44,18 @@
 		collapseBar();
 		// Navigate to now playing page
 		router.goto('/now-playing');
+	}
+	
+	function goBackFromPlaylists() {
+		collapseBar();
+		const route = $currentRoute;
+		if (route && route.startsWith('/playlist/')) {
+			// If on a playlist detail page, go back to playlists list
+			router.goto('/playlists');
+		} else {
+			// If on playlists list, go back to home
+			router.goto('/');
+		}
 	}
 	
 	function handleHideSetup() {
@@ -110,6 +122,31 @@
 				<span class="text-xs font-[400]">player</span>
 			</div>
 		<!-- {/if} -->
+	{:else if isAuthenticated && viewState === 'playlists'}
+		<div
+			class="btn-animate flex flex-col gap-2 justify-center items-center"
+			class:animate={isExpanded}
+		>
+			<button
+				class="flex flex-col border border-white rounded-full !border-2 p-2 font-bold"
+				on:click={goBackFromPlaylists}
+			>
+				<Icon icon="subway:left-arrow" width="18" height="18" strokeWidth="2" />
+			</button>
+			<span class="text-xs font-[400]">back</span>
+		</div>
+		<div
+			class="btn-animate flex flex-col gap-2 justify-center items-center"
+			class:animate={isExpanded}
+		>
+			<button
+				class="flex flex-col border border-white rounded-full !border-2 p-2 font-bold"
+				on:click={goToNowPlaying}
+			>
+				<Icon icon="mdi:music" width="18" height="18" strokeWidth="2" />
+			</button>
+			<span class="text-xs font-[400]">player</span>
+		</div>
 	{:else if isAuthenticated && nowPlayingTrack && viewState === 'now-playing'}
 		<div
 			class="btn-animate flex flex-col gap-2 justify-center items-center"
