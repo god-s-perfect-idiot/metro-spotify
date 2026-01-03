@@ -5,7 +5,7 @@
 	
 	export let isExiting = false;
 	export let isLoading = false;
-	export let playlistName = '';
+	export let artistName = '';
 	export let tracks = [];
 	export let onPlaySong = (uri, song) => {};
 	
@@ -17,7 +17,7 @@
 	class="flex flex-col w-full font-[400] h-screen page overflow-x-hidden"
 	class:page-exit={isExiting}
 >
-	<span class="text-base font-[500] h-fit px-4 uppercase truncate mt-2" title={playlistName}>{playlistName}</span>
+	<span class="text-base font-[500] h-fit px-4 uppercase truncate mt-2" title={artistName}>{artistName}</span>
 	<div class="flex flex-col gap-4 pb-20 mt-4 overflow-y-auto overflow-x-hidden px-4 h-full">
 		{#if isLoading}
 			<div class="flex flex-col gap-4 items-center justify-center my-24">
@@ -49,9 +49,9 @@
 						</span>
 						<span
 							class="text-gray-400 text-left text-base font-[300] truncate w-full"
-							title={track.artists?.map((a) => a.name).join(', ')}
+							title={track.album?.name || 'Unknown Album'}
 						>
-							{track.artists?.map((a) => a.name).join(', ') || 'Unknown Artist'}
+							{track.album?.name || 'Unknown Album'}
 						</span>
 					</div>
 				</button>
@@ -60,10 +60,10 @@
 			<div class="text-center py-12 mx-4">
 				<Icon icon="mdi:music" width="64" height="64" class="text-gray-500 mb-4" />
 				<h3 class="text-xl font-semibold mb-2 justify-start flex font-[300]">
-					This playlist is empty
+					No Tracks Found
 				</h3>
 				<p class="text-gray-400 font-[300] justify-start flex text-left text-lg">
-					Add songs to this playlist on Spotify to see them here.
+					This artist has no available tracks.
 				</p>
 			</div>
 		{/if}

@@ -8,6 +8,8 @@
   import NowPlayingPage from './pages/NowPlayingPage.svelte';
   import PlaylistsPage from './pages/PlaylistsPage.svelte';
   import PlaylistTracksPage from './pages/PlaylistTracksPage.svelte';
+  import ArtistsPage from './pages/ArtistsPage.svelte';
+  import ArtistTracksPage from './pages/ArtistTracksPage.svelte';
   import SpotifyCallback from './pages/SpotifyCallback.svelte';
   import StatusBar from './components/StatusBar.svelte';
   import BottomControls from './components/BottomControls.svelte';
@@ -40,7 +42,7 @@
       
       bottomBarExpanded.set(false);
       
-      const hadBottomBar = (previousRoute === '/spotify' || previousRoute === '/now-playing' || previousRoute === '/playlists' || previousRoute.startsWith('/playlist/')) && !previousRoute.includes('callback');
+      const hadBottomBar = (previousRoute === '/spotify' || previousRoute === '/now-playing' || previousRoute === '/playlists' || previousRoute.startsWith('/playlist/') || previousRoute === '/artists' || previousRoute.startsWith('/artist/')) && !previousRoute.includes('callback');
       const hasBottomBar = shouldShowBottomBar;
       
       if (hadBottomBar && !hasBottomBar) {
@@ -57,7 +59,7 @@
     }
   }
   
-  $: shouldShowBottomBar = (route === '/spotify' || route === '/now-playing' || route === '/playlists' || route.startsWith('/playlist/')) && !route.includes('callback');
+  $: shouldShowBottomBar = (route === '/spotify' || route === '/now-playing' || route === '/playlists' || route.startsWith('/playlist/') || route === '/artists' || route.startsWith('/artist/')) && !route.includes('callback');
   
   // Subscribe to stores for bottom bar
   $: isExpanded = $bottomBarExpanded;
@@ -74,6 +76,9 @@
     }
     if (route === '/playlists' || route.startsWith('/playlist/')) {
       return 'playlists';
+    }
+    if (route === '/artists' || route.startsWith('/artist/')) {
+      return 'artists';
     }
     return 'library';
   })();
@@ -165,6 +170,10 @@
         <PlaylistsPage {isExiting} />
       {:else if route.startsWith('/playlist/')}
         <PlaylistTracksPage {isExiting} />
+      {:else if route === '/artists'}
+        <ArtistsPage {isExiting} />
+      {:else if route.startsWith('/artist/')}
+        <ArtistTracksPage {isExiting} />
       {:else if route === '/' || route === ''}
         <HomePage {isExiting} />
       {:else}

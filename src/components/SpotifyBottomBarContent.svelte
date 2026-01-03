@@ -9,7 +9,7 @@
 	export let showSetup = false;
 	export let isAuthenticated = false;
 	export let nowPlayingTrack = null;
-	export let viewState = 'library'; // 'setup', 'login', 'library', 'now-playing', 'playlists'
+	export let viewState = 'library'; // 'setup', 'login', 'library', 'now-playing', 'playlists', 'artists'
 	export let onHideSetup = () => {};
 	export let onConnect = () => {};
 	
@@ -54,6 +54,18 @@
 			router.goto('/playlists');
 		} else {
 			// If on playlists list, go back to home
+			router.goto('/');
+		}
+	}
+	
+	function goBackFromArtists() {
+		collapseBar();
+		const route = $currentRoute;
+		if (route && route.startsWith('/artist/')) {
+			// If on an artist detail page, go back to artists list
+			router.goto('/artists');
+		} else {
+			// If on artists list, go back to home
 			router.goto('/');
 		}
 	}
@@ -130,6 +142,31 @@
 			<button
 				class="flex flex-col border border-white rounded-full !border-2 p-2 font-bold"
 				on:click={goBackFromPlaylists}
+			>
+				<Icon icon="subway:left-arrow" width="18" height="18" strokeWidth="2" />
+			</button>
+			<span class="text-xs font-[400]">back</span>
+		</div>
+		<div
+			class="btn-animate flex flex-col gap-2 justify-center items-center"
+			class:animate={isExpanded}
+		>
+			<button
+				class="flex flex-col border border-white rounded-full !border-2 p-2 font-bold"
+				on:click={goToNowPlaying}
+			>
+				<Icon icon="mdi:music" width="18" height="18" strokeWidth="2" />
+			</button>
+			<span class="text-xs font-[400]">player</span>
+		</div>
+	{:else if isAuthenticated && viewState === 'artists'}
+		<div
+			class="btn-animate flex flex-col gap-2 justify-center items-center"
+			class:animate={isExpanded}
+		>
+			<button
+				class="flex flex-col border border-white rounded-full !border-2 p-2 font-bold"
+				on:click={goBackFromArtists}
 			>
 				<Icon icon="subway:left-arrow" width="18" height="18" strokeWidth="2" />
 			</button>

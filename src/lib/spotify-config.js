@@ -24,7 +24,8 @@ export const SPOTIFY_CONFIG = {
 		'playlist-read-private',
 		'playlist-read-collaborative',
 		'user-library-read',
-		'user-top-read'
+		'user-top-read',
+		'user-follow-read'
 	]
 };
 
