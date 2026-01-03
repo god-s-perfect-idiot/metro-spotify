@@ -472,14 +472,14 @@
 			<span class="text-6xl font-[300] h-[10%]">spotify</span>
 			<div class="flex-1 flex flex-col items-start justify-center">
 				<div class="max-w-md">
-					<Icon icon="mdi:music" width="150" height="150" class="text-green-500 mb-6" />
+					<Icon icon="mdi:music" width="150" height="150" class="text-green-600 mb-6" />
 					<h2 class="text-3xl font-[300] mb-4">Connect Your Spotify Account</h2>
 					<p class="text-gray-400 mb-8 font-[300] text-xl">
 						Connect your Spotify account to access your liked songs and music library.
 					</p>
 					<button
 						on:click={login}
-						class="px-4 py-2 bg-green-600 hover:bg-green-700 {textClass} font-medium text-lg transition-colors"
+						class="px-4 py-2 bg-green-600 hover:bg-green-600 {textClass} font-medium text-lg transition-colors"
 					>
 						Connect with Spotify
 					</button>
@@ -519,7 +519,7 @@
 					</div>
 					<div class="relative w-full h-2 bg-gray-200">
 						<div
-							class="absolute top-0 left-0 h-full bg-green-500 transition-all duration-100 ease-in-out"
+							class="absolute top-0 left-0 h-full bg-green-600 transition-all duration-100 ease-in-out"
 							style="width: {seekValue}%"
 						></div>
 					</div>

@@ -12,11 +12,11 @@
 </script>
 
 <div class="page flex flex-col h-screen" class:page-exit={isExiting}>
-	<span class="text-6xl font-[300] h-[10%] px-4">spotify</span>
-	<div class="flex flex-col gap-6 mt-12 flex-1 overflow-y-auto pb-24 px-4">
+	<span class="text-base mt-2 font-[500] px-4 uppercase">spotify</span>
+	<div class="flex flex-col gap-6 flex-1 overflow-y-auto pb-2 px-4">
 		<!-- Developer Setup -->
 		<div class="flex flex-col gap-4">
-			<span class="text-xl font-[300]" style="color: {accentColor};">developer setup</span>
+			<span class="text-6xl font-[300]" style="color: {accentColor};">connect app</span>
 			<span class="text-sm font-[300] text-[#a1a1a1]">
 				Get credentials from the
 				<a

@@ -1,7 +1,7 @@
 // Simple router for Svelte app (replaces SvelteKit routing)
 import { writable } from 'svelte/store';
 
-export const currentRoute = writable('/spotify');
+export const currentRoute = writable('/');
 export const router = {
   navigate: (path) => {
     currentRoute.set(path);

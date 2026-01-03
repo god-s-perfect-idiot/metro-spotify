@@ -118,7 +118,7 @@
 
 <div class="min-h-screen flex items-center justify-center bg-gray-900 text-white">
 	<div class="text-center max-w-2xl mx-4">
-		<div class="animate-spin rounded-full h-16 w-16 border-b-2 border-green-500 mx-auto mb-4"></div>
+		<div class="animate-spin rounded-full h-16 w-16 border-b-2 border-green-600 mx-auto mb-4"></div>
 		<h1 class="text-2xl font-bold mb-2">Connecting to Spotify...</h1>
 		<p class="text-gray-400 mb-6">Please wait while we complete your authentication.</p>
 		

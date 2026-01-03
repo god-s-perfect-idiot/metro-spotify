@@ -54,7 +54,7 @@
 			</div>
 			<div class="relative w-full h-2 bg-gray-200">
 				<div
-					class="absolute top-0 left-0 h-full bg-green-500 transition-all duration-100 ease-in-out"
+					class="absolute top-0 left-0 h-full bg-green-600 transition-all duration-100 ease-in-out"
 					style="width: {seekValue}%"
 				></div>
 			</div>

@@ -63,7 +63,7 @@
 			console.error('❌ Spotify OAuth error:', error);
 			debugInfo += `\nError: ${error}`;
 			setTimeout(() => {
-				router.goto(`/spotify?error=${error}`);
+				router.replace(`/?error=${error}`);
 			}, 2000);
 			return;
 		}
@@ -127,8 +127,6 @@
 					refresh_token: tokenData.refresh_token
 				});
 				
-				accountsStore.saveToStorage('spotify');
-				
 				// Verify storage immediately
 				const storedValue = localStorage.getItem('metro_spotify_account_spotify');
 				console.log('📦 LocalStorage check after save:', storedValue ? 'Token in storage' : 'No token in storage');
@@ -136,13 +134,10 @@
 					console.log('📦 Stored value preview:', storedValue.substring(0, 100) + '...');
 				}
 				
-				// Reload from storage to ensure it's persisted
-				accountsStore.loadFromStorage();
-				
-				// Verify storage after reload
+				// Verify storage after save
 				const isAuth = accountsStore.isAuthenticated('spotify');
 				const hasToken = accountsStore.hasValidToken('spotify');
-				console.log('✅ Auth verification after reload:', { isAuth, hasToken });
+				console.log('✅ Auth verification after save:', { isAuth, hasToken });
 				console.log('📋 Account state:', accountsStore.accounts.spotify ? 'Account exists' : 'No account');
 				
 				debugInfo += '\nAccess token received and stored!';
@@ -151,23 +146,24 @@
 				
 				addToast('Spotify account connected successfully');
 				
-				// Redirect back to the main Spotify page
+				// Use a small delay to ensure storage is written, then redirect
+				// Using window.location instead of router to force a full page reload
 				setTimeout(() => {
-					router.goto('/spotify?auth_success=true');
-				}, 1000);
+					window.location.href = '/';
+				}, 500);
 				
 			} catch (error) {
 				console.error('Token exchange failed:', error);
 				debugInfo += `\nToken exchange failed: ${error.message}`;
 				setTimeout(() => {
-					router.goto('/spotify?error=token_exchange_failed');
+					router.replace('/?error=token_exchange_failed');
 				}, 3000);
 			}
 		} else {
 			console.error('No authorization code found');
 			debugInfo += '\nNo authorization code found in URL';
 			setTimeout(() => {
-				router.goto('/spotify?error=no_code');
+				router.replace('/?error=no_code');
 			}, 3000);
 		}
 		
@@ -177,7 +173,7 @@
 
 <div class="min-h-screen flex items-center justify-center bg-gray-900 text-white">
 	<div class="text-center max-w-2xl mx-4">
-		<div class="animate-spin rounded-full h-16 w-16 border-b-2 border-green-500 mx-auto mb-4"></div>
+		<div class="animate-spin rounded-full h-16 w-16 border-b-2 border-green-600 mx-auto mb-4"></div>
 		<h1 class="text-2xl font-bold mb-2">Connecting to Spotify...</h1>
 		<p class="text-gray-400 mb-6">Please wait while we complete your authentication.</p>
 		

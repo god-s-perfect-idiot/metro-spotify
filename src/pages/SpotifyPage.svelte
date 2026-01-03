@@ -1,5 +1,5 @@
 <script>
-	import { router } from '../lib/router.js';
+	import { router, currentRoute } from '../lib/router.js';
 	import { onMount, tick } from 'svelte';
 	import { browser } from '../lib/browser.js';
 	import { accountsStore } from '../store/accounts.js';
@@ -9,14 +9,10 @@
 	import { bottomBarExpanded } from '../store/bottomBar.js';
 	
 	// Page components
-	import InitializingPage from './spotify/InitializingPage.svelte';
-	import SetupPage from './spotify/SetupPage.svelte';
-	import LoginPage from './spotify/LoginPage.svelte';
-	import NowPlayingPage from './spotify/NowPlayingPage.svelte';
 	import LibraryPage from './spotify/LibraryPage.svelte';
 
 	let isExiting = false;
-	let isLoading = false;
+	let isLoading = true;
 	let likedSongs = [];
 	let spotifyApi = null;
 	let showGrid = false;
@@ -44,7 +40,6 @@
 	let selectedDeviceName = null;
 	let webPlayerReady = false;
 	let isInitializing = true;
-	export let showSetup = false;
 	let spotifyClientId = '';
 	let spotifyClientSecret = '';
 
@@ -109,6 +104,7 @@
 		} else {
 			console.log('❌ No valid token found');
 			isInitializing = false;
+			isLoading = false;
 		}
 	}
 
@@ -374,6 +370,9 @@
 			
 			await musicStore.playTrack(track, songIndex);
 			showGrid = false;
+			
+			// Navigate to now-playing when playing a song
+			router.goto('/now-playing');
 		} catch (error) {
 			console.error('Error playing song:', error);
 			if (error.status === 404) {
@@ -406,21 +405,11 @@
 		}
 	}
 	
-	// Determine current view state
-	$: viewState = (() => {
-		if (isInitializing) return 'initializing';
-		if (!isAuthenticated) {
-			return showSetup ? 'setup' : 'login';
-		}
-		if (nowPlayingTrack && nowPlayingTrack.type === 'spotify') {
-			return 'now-playing';
-		}
-		return 'library';
-	})();
+	// SpotifyPage only handles library view - now-playing is a separate route
 	
 	// Track state changes to auto-close bottom bar
 	let previousStateKey = '';
-	$: currentStateKey = `${viewState}-${showSetup}-${showGrid}-${nowPlayingTrack?.id || 'none'}`;
+	$: currentStateKey = `${showGrid}-${nowPlayingTrack?.id || 'none'}`;
 	
 	// Close bottom bar whenever state changes
 	$: {
@@ -432,39 +421,14 @@
 </script>
 
 <div class="page-holder">
-	{#if viewState === 'initializing'}
-		<InitializingPage {isExiting} />
-	{:else if viewState === 'setup'}
-		<SetupPage
-			{isExiting}
-			bind:spotifyClientId
-			bind:spotifyClientSecret
-			onConnect={connectSpotify}
-		/>
-	{:else if viewState === 'login'}
-		<LoginPage {isExiting} onSetupClick={showSetupPage} />
-	{:else if viewState === 'now-playing'}
-		<NowPlayingPage
-			{isExiting}
-			{nowPlayingTrack}
-			{currentTime}
-			{duration}
-			{seekValue}
-			{isPlayingState}
-			onPlayPrevious={playPrevious}
-			onPlayNext={playNext}
-			onTogglePlayPause={togglePlayPause}
-		/>
-	{:else if viewState === 'library'}
-		<LibraryPage
-			{isExiting}
-			{isLoading}
-			{likedSongs}
-			{musicList}
-			{showGrid}
-			onPlaySong={playSong}
-			onLetterClick={handleLetterClick}
-			onShowGrid={() => { showGrid = true; }}
-		/>
-	{/if}
+	<LibraryPage
+		{isExiting}
+		{isLoading}
+		{likedSongs}
+		{musicList}
+		{showGrid}
+		onPlaySong={playSong}
+		onLetterClick={handleLetterClick}
+		onShowGrid={() => { showGrid = true; }}
+	/>
 </div>

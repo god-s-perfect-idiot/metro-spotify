@@ -10,6 +10,7 @@
 	const dispatch = createEventDispatcher();
 	
 	let isMounted = false;
+	let isEntering = false;
 	
 	$: backgroundTheme = $backgroundThemeStore;
 	$: textClass = $textColorClassStore;
@@ -17,9 +18,14 @@
 	$: bottomBarBg = backgroundTheme === 'light' ? '#dedede' : '#1f1f1f';
 
 	onMount(() => {
+		isEntering = true;
 		// Add a small delay to ensure the initial state is properly set
 		setTimeout(() => {
 			isMounted = true;
+			// Remove entering animation after it completes
+			setTimeout(() => {
+				isEntering = false;
+			}, 300);
 		}, 100);
 	});
 
@@ -29,7 +35,7 @@
 	}
 </script>
 
-<div class="fixed bottom-0 left-0 right-0 z-50 bottom-bar-wrapper" style="background-color: {bottomBarBg};">
+<div class="fixed bottom-0 left-0 right-0 z-50 bottom-bar-wrapper" class:entering={isEntering} class:exiting={unmounting} style="background-color: {bottomBarBg};">
 	<!-- Toggle Button (Always visible) -->
 	<div class="right-4 absolute top-0 z-10">
 		<button
@@ -85,5 +91,31 @@
 
     .bottom-bar-wrapper {
         min-height: 40px;
+    }
+    
+    .bottom-bar-wrapper.entering {
+        animation: bottomBarCreepIn 0.3s ease-out forwards;
+    }
+    
+    .bottom-bar-wrapper.exiting {
+        animation: bottomBarCreepOut 0.3s ease-out forwards;
+    }
+    
+    @keyframes bottomBarCreepIn {
+        from {
+            transform: translateY(100%);
+        }
+        to {
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes bottomBarCreepOut {
+        from {
+            transform: translateY(0);
+        }
+        to {
+            transform: translateY(100%);
+        }
     }
 </style>
