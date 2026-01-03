@@ -1,5 +1,6 @@
 <script>
   import { router } from "../lib/router.js";
+  import { addToast } from "../store/toast.js";
   import { textColorClassStore, accentColorStore } from "../utils/theme.js";
   import Icon from "@iconify/svelte";
 
@@ -60,6 +61,10 @@
   ];
 
   function handleItemClick(route) {
+    if (route === "/play-queue") {
+        addToast("coming soon");
+        return;
+    }
     // Trigger exit animation, then navigate after animation completes
     internalIsExiting = true;
     setTimeout(() => {

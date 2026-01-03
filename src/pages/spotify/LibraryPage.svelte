@@ -52,7 +52,7 @@
 				</div>
 		{:else if !isLoading && likedSongs.length > 0}
 			{#each Object.entries(musicList) as musicEntry}
-				<div class="flex flex-col gap-6">
+				<div class="flex flex-col gap-4">
 					<button
 						class="{textClass} text-3xl lowercase border-2 w-12 h-12 justify-start items-end flex pl-1 pb-1 font-[300]"
 						style="background-color: {accentColor}; border-color: {accentColor};"

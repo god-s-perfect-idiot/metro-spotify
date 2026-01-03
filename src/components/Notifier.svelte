@@ -6,7 +6,7 @@
 
 <div class="toast-container">
     {#each $toasts as toast (toast.id)}
-        <Notification content={toast.content} duration={toast.duration} />
+        <Notification content={toast.message} duration={toast.duration} />
     {/each}
 </div>
 

@@ -9,7 +9,7 @@
   export let showSetup = false;
   export let isAuthenticated = false;
   export let nowPlayingTrack = null;
-  export let viewState = "library"; // 'setup', 'login', 'library', 'now-playing', 'playlists', 'artists'
+  export let viewState = "library"; // 'setup', 'login', 'library', 'now-playing', 'playlists', 'artists', 'albums', 'people', 'settings'
   export let onHideSetup = () => {};
   export let onConnect = () => {};
 
@@ -72,6 +72,35 @@
       // If on artists list, go back to home
       router.goto("/");
     }
+  }
+
+  function goBackFromAlbums() {
+    collapseBar();
+    const route = $currentRoute;
+    if (route && route.startsWith("/album/")) {
+      // If on an album detail page, go back to albums list
+      router.goto("/albums");
+    } else {
+      // If on albums list, go back to home
+      router.goto("/");
+    }
+  }
+
+  function goBackFromPeople() {
+    collapseBar();
+    const route = $currentRoute;
+    if (route && route.startsWith("/user/")) {
+      // If on a user detail page, go back to people list
+      router.goto("/people");
+    } else {
+      // If on people list, go back to home
+      router.goto("/");
+    }
+  }
+
+  function goBackFromSettings() {
+    collapseBar();
+    router.goto("/");
   }
 
   function goToSongs() {
@@ -198,6 +227,69 @@
         <Icon icon="mdi:music" width="18" height="18" strokeWidth="2" />
       </button>
       <span class="text-xs font-[400]">player</span>
+    </div>
+  {:else if isAuthenticated && viewState === "albums"}
+    <div
+      class="btn-animate flex flex-col gap-2 justify-center items-center"
+      class:animate={isExpanded}
+    >
+      <button
+        class="flex flex-col border border-white rounded-full !border-2 p-2 font-bold"
+        on:click={goBackFromAlbums}
+      >
+        <Icon icon="subway:left-arrow" width="18" height="18" strokeWidth="2" />
+      </button>
+      <span class="text-xs font-[400]">back</span>
+    </div>
+    <div
+      class="btn-animate flex flex-col gap-2 justify-center items-center"
+      class:animate={isExpanded}
+    >
+      <button
+        class="flex flex-col border border-white rounded-full !border-2 p-2 font-bold"
+        on:click={goToNowPlaying}
+      >
+        <Icon icon="mdi:music" width="18" height="18" strokeWidth="2" />
+      </button>
+      <span class="text-xs font-[400]">player</span>
+    </div>
+  {:else if isAuthenticated && viewState === "people"}
+    <div
+      class="btn-animate flex flex-col gap-2 justify-center items-center"
+      class:animate={isExpanded}
+    >
+      <button
+        class="flex flex-col border border-white rounded-full !border-2 p-2 font-bold"
+        on:click={goBackFromPeople}
+      >
+        <Icon icon="subway:left-arrow" width="18" height="18" strokeWidth="2" />
+      </button>
+      <span class="text-xs font-[400]">back</span>
+    </div>
+    <div
+      class="btn-animate flex flex-col gap-2 justify-center items-center"
+      class:animate={isExpanded}
+    >
+      <button
+        class="flex flex-col border border-white rounded-full !border-2 p-2 font-bold"
+        on:click={goToNowPlaying}
+      >
+        <Icon icon="mdi:music" width="18" height="18" strokeWidth="2" />
+      </button>
+      <span class="text-xs font-[400]">player</span>
+    </div>
+  {:else if isAuthenticated && viewState === "settings"}
+    <div
+      class="btn-animate flex flex-col gap-2 justify-center items-center"
+      class:animate={isExpanded}
+    >
+      <button
+        class="flex flex-col border border-white rounded-full !border-2 p-2 font-bold"
+        on:click={goBackFromSettings}
+      >
+        <Icon icon="subway:left-arrow" width="18" height="18" strokeWidth="2" />
+      </button>
+      <span class="text-xs font-[400]">back</span>
     </div>
   {:else if isAuthenticated && viewState === "now-playing"}
     <div

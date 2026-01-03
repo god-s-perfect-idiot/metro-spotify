@@ -10,10 +10,16 @@
   import PlaylistTracksPage from './pages/PlaylistTracksPage.svelte';
   import ArtistsPage from './pages/ArtistsPage.svelte';
   import ArtistTracksPage from './pages/ArtistTracksPage.svelte';
+  import AlbumsPage from './pages/AlbumsPage.svelte';
+  import AlbumTracksPage from './pages/AlbumTracksPage.svelte';
+  import PeoplePage from './pages/PeoplePage.svelte';
+  import UserPlaylistsPage from './pages/UserPlaylistsPage.svelte';
+  import SettingsPage from './pages/SettingsPage.svelte';
   import SpotifyCallback from './pages/SpotifyCallback.svelte';
   import StatusBar from './components/StatusBar.svelte';
   import BottomControls from './components/BottomControls.svelte';
   import SpotifyBottomBarContent from './components/SpotifyBottomBarContent.svelte';
+  import Notifier from './components/Notifier.svelte';
   import { bottomBarExpanded, bottomBarUnmounting } from './store/bottomBar.js';
   import { accountsStore } from './store/accounts.js';
   import { musicStore, currentTrack } from './store/music.js';
@@ -52,7 +58,7 @@
       
       bottomBarExpanded.set(false);
       
-      const hadBottomBar = (previousRoute === '/spotify' || previousRoute === '/now-playing' || previousRoute === '/playlists' || previousRoute.startsWith('/playlist/') || previousRoute === '/artists' || previousRoute.startsWith('/artist/')) && !previousRoute.includes('callback');
+      const hadBottomBar = (previousRoute === '/spotify' || previousRoute === '/now-playing' || previousRoute === '/playlists' || previousRoute.startsWith('/playlist/') || previousRoute === '/artists' || previousRoute.startsWith('/artist/') || previousRoute === '/albums' || previousRoute.startsWith('/album/') || previousRoute === '/people' || previousRoute.startsWith('/user/') || previousRoute === '/settings') && !previousRoute.includes('callback');
       const hasBottomBar = shouldShowBottomBar;
       
       if (hadBottomBar && !hasBottomBar) {
@@ -69,7 +75,7 @@
     }
   }
   
-  $: shouldShowBottomBar = (route === '/spotify' || route === '/now-playing' || route === '/playlists' || route.startsWith('/playlist/') || route === '/artists' || route.startsWith('/artist/')) && !route.includes('callback');
+  $: shouldShowBottomBar = (route === '/spotify' || route === '/now-playing' || route === '/playlists' || route.startsWith('/playlist/') || route === '/artists' || route.startsWith('/artist/') || route === '/albums' || route.startsWith('/album/') || route === '/people' || route.startsWith('/user/') || route === '/settings') && !route.includes('callback');
   
   // Subscribe to stores for bottom bar
   $: isExpanded = $bottomBarExpanded;
@@ -89,6 +95,15 @@
     }
     if (route === '/artists' || route.startsWith('/artist/')) {
       return 'artists';
+    }
+    if (route === '/albums' || route.startsWith('/album/')) {
+      return 'albums';
+    }
+    if (route === '/people' || route.startsWith('/user/')) {
+      return 'people';
+    }
+    if (route === '/settings') {
+      return 'settings';
     }
     return 'library';
   })();
@@ -186,6 +201,16 @@
         <ArtistsPage {isExiting} />
       {:else if route.startsWith('/artist/')}
         <ArtistTracksPage {isExiting} />
+      {:else if route === '/albums'}
+        <AlbumsPage {isExiting} />
+      {:else if route.startsWith('/album/')}
+        <AlbumTracksPage {isExiting} />
+      {:else if route === '/people'}
+        <PeoplePage {isExiting} />
+      {:else if route.startsWith('/user/')}
+        <UserPlaylistsPage {isExiting} />
+      {:else if route === '/settings'}
+        <SettingsPage {isExiting} />
       {:else if route === '/' || route === ''}
         <HomePage isExiting={homePageIsExiting} />
       {:else}
@@ -208,4 +233,7 @@
       </BottomControls>
     {/if}
   {/if}
+  
+  <!-- Toast Notifications -->
+  <Notifier />
 </main>
