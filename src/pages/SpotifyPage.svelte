@@ -1,21 +1,20 @@
 <script>
-	import BottomControls from '../components/BottomControls.svelte';
-	import Icon from '@iconify/svelte';
 	import { router } from '../lib/router.js';
 	import { onMount, tick } from 'svelte';
 	import { browser } from '../lib/browser.js';
 	import { accountsStore } from '../store/accounts.js';
 	import { getAuthUrl } from '../lib/spotify-config.js';
-	import LetterGrid from '../components/LetterGrid.svelte';
-	import Loader from '../components/Loader.svelte';
-	import Input from '../components/Input.svelte';
-	import Button from '../components/Button.svelte';
-	import { accentColorStore, textColorClassStore } from '../utils/theme.js';
 	import { musicStore, currentTrack, isPlaying, playbackProgress } from '../store/music.js';
 	import { addToast } from '../store/toast.js';
+	import { bottomBarExpanded } from '../store/bottomBar.js';
+	
+	// Page components
+	import InitializingPage from './spotify/InitializingPage.svelte';
+	import SetupPage from './spotify/SetupPage.svelte';
+	import LoginPage from './spotify/LoginPage.svelte';
+	import NowPlayingPage from './spotify/NowPlayingPage.svelte';
+	import LibraryPage from './spotify/LibraryPage.svelte';
 
-	let isExpanded = false;
-	let isUnmounting = false;
 	let isExiting = false;
 	let isLoading = false;
 	let likedSongs = [];
@@ -28,9 +27,6 @@
 	let currentTrackData = null;
 	let isPlayingState = false;
 	let progress = { currentTime: 0, duration: 0, seekValue: 0 };
-	
-	$: accentColor = $accentColorStore;
-	$: textClass = $textColorClassStore;
 	
 	// Subscribe to music store
 	$: currentTrackData = $currentTrack;
@@ -48,36 +44,10 @@
 	let selectedDeviceName = null;
 	let webPlayerReady = false;
 	let isInitializing = true;
-	let showSetup = false;
+	export let showSetup = false;
 	let spotifyClientId = '';
 	let spotifyClientSecret = '';
 
-	function handleToggle(event) {
-		isExpanded = event.detail.expanded;
-	}
-
-	function closeBottomBar() {
-		if (isExpanded) {
-			isExpanded = false;
-			isUnmounting = true;
-			setTimeout(() => {
-				isUnmounting = false;
-			}, 300);
-		}
-	}
-
-	const closePage = () => {
-		isUnmounting = true;
-		setTimeout(() => {
-			isExpanded = false;
-			setTimeout(() => {
-				isExiting = true;
-				setTimeout(() => {
-					router.goto('/');
-				}, 200);
-			}, 300);
-		}, 300);
-	};
 
 	// Initialize Spotify on page load
 	onMount(async () => {
@@ -88,7 +58,6 @@
 			accountsStore.loadFromStorage();
 			await initializeSpotify();
 		}
-		isExpanded = false;
 	});
 
 	function loadSpotifySettings() {
@@ -103,7 +72,7 @@
 		localStorage.setItem('spotify_client_secret', spotifyClientSecret);
 	}
 
-	async function connectSpotify() {
+	export async function connectSpotify() {
 		// Save credentials first
 		saveSpotifySettings();
 		
@@ -344,15 +313,13 @@
 	}
 
 	function handleLetterClick(char) {
-		closeBottomBar();
 		targetChar = char;
-		isExiting = true;
+		// Don't set isExiting for letter grid - it's not a page navigation
 		setTimeout(
 			() => {
 				const targetId = char.toUpperCase();
 				scrollToChar(targetId);
 				showGrid = false;
-				isExiting = false;
 			},
 			27 * 10 + 200
 		);
@@ -360,12 +327,10 @@
 	}
 
 	function showSetupPage() {
-		closeBottomBar();
 		showSetup = true;
 	}
 
 	function hideSetupPage() {
-		closeBottomBar();
 		showSetup = false;
 	}
 
@@ -397,8 +362,6 @@
 
 	async function playSong(uri, song = null) {
 		if (!spotifyApi || !song) return;
-
-		closeBottomBar();
 
 		try {
 			const track = {
@@ -435,17 +398,6 @@
 		await musicStore.togglePlayPause();
 	}
 
-	function formatTime(seconds) {
-		const mins = Math.floor(seconds / 60);
-		const secs = Math.floor(seconds % 60);
-		return `${mins}:${secs.toString().padStart(2, '0')}`;
-	}
-
-	function formatImageUrl(images, size = 300) {
-		if (!images || images.length === 0) return null;
-		return images.find((img) => img.width >= size)?.url || images[0].url;
-	}
-
 	// Check if user is authenticated
 	$: isAuthenticated = accountsStore.isAuthenticated('spotify');
 	$: {
@@ -453,10 +405,7 @@
 			console.log('🔍 Auth state changed:', { isAuthenticated });
 		}
 	}
-
-	// Track previous view state for navigation detection
-	let previousViewState = '';
-
+	
 	// Determine current view state
 	$: viewState = (() => {
 		if (isInitializing) return 'initializing';
@@ -466,329 +415,56 @@
 		if (nowPlayingTrack && nowPlayingTrack.type === 'spotify') {
 			return 'now-playing';
 		}
-		return showGrid ? 'letter-grid' : 'library';
+		return 'library';
 	})();
-
-	// Animate bottom bar close on view state change
-	$: if (previousViewState && viewState !== previousViewState) {
-		// Close the bottom bar when navigating
-		isExpanded = false;
-		isUnmounting = true;
-		setTimeout(() => {
-			isUnmounting = false;
-		}, 300); // Match the animation duration
+	
+	// Track state changes to auto-close bottom bar
+	let previousStateKey = '';
+	$: currentStateKey = `${viewState}-${showSetup}-${showGrid}-${nowPlayingTrack?.id || 'none'}`;
+	
+	// Close bottom bar whenever state changes
+	$: {
+		if (previousStateKey && previousStateKey !== currentStateKey) {
+			bottomBarExpanded.set(false);
+		}
+		previousStateKey = currentStateKey;
 	}
-	$: previousViewState = viewState;
 </script>
 
 <div class="page-holder">
 	{#if viewState === 'initializing'}
-		<div class="page flex flex-col h-screen" class:page-exit={isExiting}>
-			<span class="text-6xl font-[300] h-[10%] px-4">spotify</span>
-			<div class="flex-1 flex flex-col items-center justify-center my-24">
-				<Loader />
-			</div>
-		</div>
+		<InitializingPage {isExiting} />
 	{:else if viewState === 'setup'}
-			<!-- Setup Page -->
-			<div class="page flex flex-col h-screen" class:page-exit={isExiting}>
-				<span class="text-6xl font-[300] h-[10%] px-4">spotify</span>
-				<div class="flex flex-col gap-6 mt-12 flex-1 overflow-y-auto pb-24 px-4">
-					<!-- Developer Setup -->
-					<div class="flex flex-col gap-4">
-						<span class="text-xl font-[300]" style="color: {accentColor};">developer setup</span>
-						<span class="text-sm font-[300] text-[#a1a1a1]">
-							Get credentials from the
-							<a
-								href="https://developer.spotify.com/dashboard"
-								target="_blank"
-								rel="noopener noreferrer"
-								class="text-blue-400 underline">Spotify Developer Dashboard</a
-							>.
-						</span>
-
-						<div class="flex flex-col gap-4">
-							<Input label="Client ID" bind:content={spotifyClientId} />
-							<div class="flex flex-col gap-2 font-[400]">
-								<label for="spotify-client-secret" class="text-[#767676] text-sm">Client Secret</label>
-								<input
-									id="spotify-client-secret"
-									type="password"
-									bind:value={spotifyClientSecret}
-									class="bg-[#bebebe] w-full py-2 pl-2 outline-none text-[#121212] text-base"
-								/>
-							</div>
-						</div>
-
-						<div class="flex flex-col gap-2">
-							<span class="text-sm font-[300] text-[#a1a1a1]">Redirect URI:</span>
-							<span class="text-base font-[300] text-[#767676] mt-1">metrospotify://callback</span>
-						</div>
-					</div>
-
-					<!-- Connection Status -->
-					<div class="flex flex-col gap-2">
-						<span class="text-xl font-[300]">
-							Enter your credentials above, then click connect to authorize the app.
-						</span>
-						<span class="text-sm font-[300] text-[#a1a1a1]">
-							Your credentials are stored locally on your device and never shared with anyone.
-						</span>
-					</div>
-
-					<!-- Connect Button -->
-					<div class="mt-6">
-						<Button text="connect" onClick={connectSpotify} className="w-auto" />
-					</div>
-				</div>
-			</div>
-	{:else if viewState === 'login'}
-		<!-- Login Page -->
-		<div class="page flex flex-col h-screen" class:page-exit={isExiting}>
-			<span class="text-6xl font-[300] h-[10%] px-4">spotify</span>
-			<div class="flex-1 flex flex-col items-start justify-center px-4">
-				<div class="max-w-md">
-					<Icon icon="mdi:music" width="150" height="150" class="text-green-500 mb-6" />
-					<h2 class="text-3xl font-[300] mb-4">Connect Your Spotify Account</h2>
-					<p class="text-gray-400 mb-8 font-[300] text-xl">
-						Connect your Spotify account to access your liked songs and music library.
-					</p>
-					<button
-						on:click={showSetupPage}
-						class="px-4 py-2 bg-green-600 hover:bg-green-700 {textClass} font-medium text-lg transition-colors"
-					>
-						Connect with Spotify
-					</button>
-				</div>
-			</div>
-		</div>
-	{:else if viewState === 'now-playing'}
-		<div
-			class="flex flex-col pt-4 w-full font-[400] h-screen page overflow-x-hidden"
-			class:page-exit={isExiting}
-		>
-			<span class="text-6xl font-[300] h-[10%] px-4">spotify</span>
-			<div class="flex flex-col gap-2 mb-16 overflow-x-hidden px-4">
-				<span class="text-4xl font-[300]">now playing</span>
-
-				<div class="flex w-72 h-72 justify-center items-center mt-4">
-					{#if nowPlayingTrack.album?.images}
-						<img
-							src={formatImageUrl(nowPlayingTrack.album.images, 300)}
-							alt={nowPlayingTrack.album.name}
-							class="w-72 h-72 object-cover"
-						/>
-					{:else}
-						<div class="w-72 h-72 bg-gray-700 flex items-center justify-center">
-							<Icon icon="mdi:music" width="168" height="168" class="text-gray-400" />
-						</div>
-					{/if}
-				</div>
-
-				<div class="flex flex-col gap-2 w-72 max-w-md">
-					<div class="flex justify-between text-sm text-gray-400">
-						<span>{formatTime(currentTime)}</span>
-						<span>{formatTime(duration)}</span>
-					</div>
-					<div class="relative w-full h-2 bg-gray-200">
-						<div
-							class="absolute top-0 left-0 h-full bg-green-500 transition-all duration-100 ease-in-out"
-							style="width: {seekValue}%"
-						></div>
-					</div>
-				</div>
-
-				<div class="flex flex-col gap-1 w-72 max-w-full">
-					<span class="text-2xl font-[300] mt-2 truncate" title={nowPlayingTrack.name}>{nowPlayingTrack.name}</span>
-					<span class="text-lg text-gray-400 truncate" title={nowPlayingTrack.artists?.map((a) => a.name).join(', ')}
-						>{nowPlayingTrack.artists?.map((a) => a.name).join(', ')}</span
-					>
-				</div>
-
-				<div class="flex flex-row justify-between mt-6 w-72">
-					<button
-						class="flex flex-row gap-4 items-center border-2 border-white rounded-full p-2"
-						on:click={playPrevious}
-					>
-						<Icon icon="mdi:skip-previous" width="32" height="32" />
-					</button>
-					<button
-						class="flex flex-row gap-4 items-center border-2 border-white rounded-full p-2"
-						on:click={togglePlayPause}
-					>
-						<Icon icon={isPlayingState ? 'mdi:pause' : 'mdi:play'} width="32" height="32" />
-					</button>
-					<button
-						class="flex flex-row gap-4 items-center border-2 border-white rounded-full p-2"
-						on:click={playNext}
-					>
-						<Icon icon="mdi:skip-next" width="32" height="32" />
-					</button>
-				</div>
-			</div>
-		</div>
-	{:else if viewState === 'letter-grid'}
-		<LetterGrid
-			items={likedSongs}
-			itemNameKey="name"
-			{showGrid}
+		<SetupPage
 			{isExiting}
-			onLetterClick={handleLetterClick}
+			bind:spotifyClientId
+			bind:spotifyClientSecret
+			onConnect={connectSpotify}
+		/>
+	{:else if viewState === 'login'}
+		<LoginPage {isExiting} onSetupClick={showSetupPage} />
+	{:else if viewState === 'now-playing'}
+		<NowPlayingPage
+			{isExiting}
+			{nowPlayingTrack}
+			{currentTime}
+			{duration}
+			{seekValue}
+			{isPlayingState}
+			onPlayPrevious={playPrevious}
+			onPlayNext={playNext}
+			onTogglePlayPause={togglePlayPause}
 		/>
 	{:else if viewState === 'library'}
-				<div
-					class="flex flex-col pt-4 w-full font-[400] h-screen page overflow-x-hidden"
-					class:page-exit={isExiting}
-				>
-					<span class="text-6xl font-[300] h-[10%] px-4">spotify</span>
-					<div class="flex flex-col gap-8 pb-16 mt-6 overflow-y-auto overflow-x-hidden px-4">
-						{#if isLoading}
-							<div class="flex flex-col gap-4 items-center justify-center my-24">
-								<Loader />
-							</div>
-						{:else if likedSongs.length > 0}
-							{#each Object.entries(musicList) as musicEntry}
-								<div class="flex flex-col gap-6">
-									<button
-										class="{textClass} text-3xl lowercase border-2 w-12 h-12 justify-start items-end flex pl-1 pb-1 font-[300]"
-										style="background-color: {accentColor}; border-color: {accentColor};"
-										id={musicEntry[0].toUpperCase()}
-										on:click={() => {
-											closeBottomBar();
-											showGrid = true;
-										}}
-									>
-										{musicEntry[0]}
-									</button>
-									{#each musicEntry[1] as song}
-										<button
-											class="flex flex-row gap-4 items-center w-full min-w-0"
-											on:click={() => playSong(song.uri, song)}
-										>
-											{#if song.album?.images && song.album.images.length > 0}
-												<img
-													src={song.album.images[0].url}
-													alt={song.album.name}
-													class="w-16 h-16 object-cover flex-shrink-0"
-												/>
-											{:else}
-												<div
-													class="w-12 h-12 rounded-lg bg-gray-700 flex items-start justify-center flex-shrink-0"
-												>
-													<Icon icon="mdi:music" width="24" height="24" class="text-gray-400" />
-												</div>
-											{/if}
-
-											<div class="flex flex-col min-w-0 flex-1 items-start overflow-hidden">
-												<span class="text-2xl text-left font-[300] truncate w-full" title={song.name}>
-													{song.name}
-												</span>
-												<span
-													class="text-gray-400 text-left text-base font-[300] truncate w-full"
-													title={song.artists?.map((a) => a.name).join(', ')}
-												>
-													{song.artists?.map((a) => a.name).join(', ') || 'Unknown Artist'}
-												</span>
-											</div>
-										</button>
-									{/each}
-								</div>
-							{/each}
-						{:else}
-							<div class="text-center py-12 mx-4">
-								<Icon icon="mdi:music" width="64" height="64" class="text-gray-500 mb-4" />
-								<h3 class="text-xl font-semibold mb-2 justify-start flex font-[300]">
-									No Liked Songs Found
-								</h3>
-								<p class="text-gray-400 font-[300] justify-start flex text-left text-lg">
-									Like some songs on Spotify to see them here.
-								</p>
-							</div>
-						{/if}
-					</div>
-				</div>
+		<LibraryPage
+			{isExiting}
+			{isLoading}
+			{likedSongs}
+			{musicList}
+			{showGrid}
+			onPlaySong={playSong}
+			onLetterClick={handleLetterClick}
+			onShowGrid={() => { showGrid = true; }}
+		/>
 	{/if}
 </div>
-<BottomControls expanded={isExpanded} unmounting={isUnmounting} on:toggle={handleToggle}>
-	<div class="flex flex-row gap-12 justify-center items-center">
-		{#if showSetup && !isAuthenticated}
-			<div
-				class="btn-animate flex flex-col gap-2 justify-center items-center"
-				class:animate={isExpanded}
-			>
-				<button
-					class="flex flex-col border border-white rounded-full !border-2 p-2 font-bold"
-					on:click={hideSetupPage}
-				>
-					<Icon icon="subway:left-arrow" width="18" height="18" strokeWidth="2" />
-				</button>
-				<span class="text-xs font-[400]">back</span>
-			</div>
-			<div
-				class="btn-animate flex flex-col gap-2 justify-center items-center"
-				class:animate={isExpanded}
-			>
-				<button
-					class="flex flex-col border border-white rounded-full !border-2 p-2 font-bold"
-					on:click={connectSpotify}
-				>
-					<Icon icon="mdi:check" width="18" height="18" strokeWidth="2" />
-				</button>
-				<span class="text-xs font-[400]">connect</span>
-			</div>
-		{/if}
-		{#if isAuthenticated && nowPlayingTrack}
-			<div
-				class="btn-animate flex flex-col gap-2 justify-center items-center"
-				class:animate={isExpanded}
-			>
-				<button
-					class="flex flex-col border border-white rounded-full !border-2 p-2 font-bold"
-					on:click={() => {
-						closeBottomBar();
-						musicStore.clear();
-					}}
-				>
-					<Icon icon="subway:left-arrow" width="18" height="18" strokeWidth="2" />
-				</button>
-				<span class="text-xs font-[400]">library</span>
-			</div>
-		{/if}
-		<div
-			class="btn-animate flex flex-col gap-2 justify-center items-center"
-			class:animate={isExpanded}
-		>
-			<button
-				on:click={closePage}
-				class="flex flex-col border border-white rounded-full !border-2 p-2 font-bold"
-			>
-				<Icon icon="rivet-icons:close" width="18" height="18" strokeWidth="2" />
-			</button>
-			<span class="text-xs font-[400]">close</span>
-		</div>
-	</div>
-</BottomControls>
-
-<style>
-	.btn-animate {
-		transform: translateY(120%);
-		opacity: 0;
-	}
-
-	.btn-animate.animate {
-		animation: button-overshoot 0.5s ease-out forwards;
-		opacity: 1;
-	}
-
-	@keyframes button-overshoot {
-		0% {
-			transform: translateY(120%);
-		}
-		70% {
-			transform: translateY(-20%);
-		}
-		100% {
-			transform: translateY(0);
-		}
-	}
-</style>

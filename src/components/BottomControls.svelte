@@ -29,7 +29,7 @@
 	}
 </script>
 
-<div class="fixed bottom-0 left-0 right-0 z-50" style="background-color: {bottomBarBg};">
+<div class="fixed bottom-0 left-0 right-0 z-50 bottom-bar-wrapper" style="background-color: {bottomBarBg};">
 	<!-- Toggle Button (Always visible) -->
 	<div class="right-4 absolute top-0 z-10">
 		<button
@@ -81,5 +81,9 @@
 
     .bottom-bar-container.unmounting {
         height: 0px !important;
+    }
+
+    .bottom-bar-wrapper {
+        min-height: 40px;
     }
 </style>

@@ -5,11 +5,42 @@
   import SpotifyPage from './pages/SpotifyPage.svelte';
   import SpotifyCallback from './pages/SpotifyCallback.svelte';
   import StatusBar from './components/StatusBar.svelte';
+  import BottomControls from './components/BottomControls.svelte';
+  import SpotifyBottomBarContent from './components/SpotifyBottomBarContent.svelte';
+  import { bottomBarExpanded, bottomBarUnmounting } from './store/bottomBar.js';
+  import { accountsStore } from './store/accounts.js';
+  import { musicStore, currentTrack } from './store/music.js';
   
   let route = '/spotify';
+  let spotifyPageRef = null;
+  let showSetup = false;
   
   $: route = $currentRoute;
   $: console.log('📍 Current route:', route);
+  
+  // Subscribe to stores for bottom bar
+  $: isExpanded = $bottomBarExpanded;
+  $: isUnmounting = $bottomBarUnmounting;
+  $: isAuthenticated = accountsStore.isAuthenticated('spotify');
+  $: currentTrackData = $currentTrack;
+  $: nowPlayingTrack = currentTrackData && currentTrackData.type === 'spotify' ? currentTrackData : null;
+  
+  function handleToggle(event) {
+    bottomBarExpanded.set(event.detail.expanded);
+  }
+  
+  function handleHideSetup() {
+    showSetup = false;
+    if (spotifyPageRef && spotifyPageRef.hideSetupPage) {
+      spotifyPageRef.hideSetupPage();
+    }
+  }
+  
+  function handleConnect() {
+    if (spotifyPageRef && spotifyPageRef.connectSpotify) {
+      spotifyPageRef.connectSpotify();
+    }
+  }
   
   onMount(() => {
     // Handle deep links (OAuth callback) - only in Capacitor
@@ -55,9 +86,23 @@
     {#if route.startsWith('/spotify/callback') || route.startsWith('/callback')}
       <SpotifyCallback />
     {:else if route.startsWith('/spotify')}
-      <SpotifyPage />
+      <SpotifyPage bind:this={spotifyPageRef} bind:showSetup />
     {:else}
-      <SpotifyPage />
+      <SpotifyPage bind:this={spotifyPageRef} bind:showSetup />
     {/if}
   </div>
+  
+  <!-- Shared Bottom Controls -->
+  {#if !route.includes('callback')}
+    <BottomControls expanded={isExpanded} unmounting={isUnmounting} on:toggle={handleToggle}>
+      <SpotifyBottomBarContent
+        {isExpanded}
+        {showSetup}
+        {isAuthenticated}
+        {nowPlayingTrack}
+        onHideSetup={handleHideSetup}
+        onConnect={handleConnect}
+      />
+    </BottomControls>
+  {/if}
 </main>
