@@ -277,7 +277,7 @@
 					}
 				}
 				// Limit for development
-				hasMore = false;
+				// hasMore = false;
 			}
 
 			likedSongs = allSongs.filter((song) => song.name && song.name.trim() !== '');
