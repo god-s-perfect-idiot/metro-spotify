@@ -63,10 +63,7 @@
   ];
 
   function handleItemClick(route) {
-    if (route === "/play-queue") {
-        addToast("coming soon");
-        return;
-    }
+    // No special handling needed for play-queue anymore
     
     // If parent provides onBeforeNavigate callback, use it (carousel will handle exit)
     if (onBeforeNavigate) {

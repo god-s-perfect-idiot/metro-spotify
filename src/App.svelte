@@ -7,6 +7,7 @@
   import AuthPage from './pages/AuthPage.svelte';
   import SpotifyPage from './pages/SpotifyPage.svelte';
   import NowPlayingPage from './pages/NowPlayingPage.svelte';
+  import PlayQueuePage from './pages/PlayQueuePage.svelte';
   import PlaylistsPage from './pages/PlaylistsPage.svelte';
   import PlaylistTracksPage from './pages/PlaylistTracksPage.svelte';
   import ArtistsPage from './pages/ArtistsPage.svelte';
@@ -59,7 +60,7 @@
       
       bottomBarExpanded.set(false);
       
-      const hadBottomBar = (previousRoute === '/spotify' || previousRoute === '/now-playing' || previousRoute === '/playlists' || previousRoute.startsWith('/playlist/') || previousRoute === '/artists' || previousRoute.startsWith('/artist/') || previousRoute === '/albums' || previousRoute.startsWith('/album/') || previousRoute === '/people' || previousRoute.startsWith('/user/') || previousRoute === '/settings') && !previousRoute.includes('callback');
+      const hadBottomBar = (previousRoute === '/spotify' || previousRoute === '/now-playing' || previousRoute === '/play-queue' || previousRoute === '/playlists' || previousRoute.startsWith('/playlist/') || previousRoute === '/artists' || previousRoute.startsWith('/artist/') || previousRoute === '/albums' || previousRoute.startsWith('/album/') || previousRoute === '/people' || previousRoute.startsWith('/user/') || previousRoute === '/settings') && !previousRoute.includes('callback');
       const hasBottomBar = shouldShowBottomBar;
       
       if (hadBottomBar && !hasBottomBar) {
@@ -76,7 +77,7 @@
     }
   }
   
-  $: shouldShowBottomBar = (route === '/spotify' || route === '/now-playing' || route === '/playlists' || route.startsWith('/playlist/') || route === '/artists' || route.startsWith('/artist/') || route === '/albums' || route.startsWith('/album/') || route === '/people' || route.startsWith('/user/') || route === '/settings') && !route.includes('callback');
+  $: shouldShowBottomBar = (route === '/spotify' || route === '/now-playing' || route === '/play-queue' || route === '/playlists' || route.startsWith('/playlist/') || route === '/artists' || route.startsWith('/artist/') || route === '/albums' || route.startsWith('/album/') || route === '/people' || route.startsWith('/user/') || route === '/settings') && !route.includes('callback');
   
   // Subscribe to stores for bottom bar
   $: isExpanded = $bottomBarExpanded;
@@ -90,6 +91,9 @@
   $: viewState = (() => {
     if (route === '/now-playing') {
       return 'now-playing';
+    }
+    if (route === '/play-queue') {
+      return 'play-queue';
     }
     if (route === '/playlists' || route.startsWith('/playlist/')) {
       return 'playlists';
@@ -194,6 +198,8 @@
         <SpotifyPage bind:this={spotifyPageRef} {isExiting} />
       {:else if route === '/now-playing'}
         <NowPlayingPage {isExiting} />
+      {:else if route === '/play-queue'}
+        <PlayQueuePage {isExiting} />
       {:else if route === '/playlists'}
         <PlaylistsPage {isExiting} />
       {:else if route.startsWith('/playlist/')}

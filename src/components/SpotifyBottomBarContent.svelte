@@ -9,6 +9,7 @@
   export let showSetup = false;
   export let isAuthenticated = false;
   export let nowPlayingTrack = null;
+
   export let viewState = "library"; // 'setup', 'login', 'library', 'now-playing', 'playlists', 'artists', 'albums', 'people', 'settings'
   export let onHideSetup = () => {};
   export let onConnect = () => {};
@@ -111,6 +112,11 @@
   function goBackFromNowPlaying() {
     collapseBar();
     // Go back to the page
+    router.goto("/");
+  }
+
+  function goBackFromPlayQueue() {
+    collapseBar();
     router.goto("/");
   }
 
@@ -315,6 +321,31 @@
         <Icon icon="mdi:music" width="18" height="18" strokeWidth="2" />
       </button>
       <span class="text-xs font-[400]">songs</span>
+    </div>
+  {:else if isAuthenticated && viewState === "play-queue"}
+    <div
+      class="btn-animate flex flex-col gap-2 justify-center items-center"
+      class:animate={isExpanded}
+    >
+      <button
+        class="flex flex-col border border-white rounded-full !border-2 p-2 font-bold"
+        on:click={goBackFromPlayQueue}
+      >
+        <Icon icon="subway:left-arrow" width="18" height="18" strokeWidth="2" />
+      </button>
+      <span class="text-xs font-[400]">back</span>
+    </div>
+    <div
+      class="btn-animate flex flex-col gap-2 justify-center items-center"
+      class:animate={isExpanded}
+    >
+      <button
+        class="flex flex-col border border-white rounded-full !border-2 p-2 font-bold"
+        on:click={goToNowPlaying}
+      >
+        <Icon icon="mdi:music" width="18" height="18" strokeWidth="2" />
+      </button>
+      <span class="text-xs font-[400]">player</span>
     </div>
   {/if}
   <div

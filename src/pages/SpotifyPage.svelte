@@ -391,10 +391,17 @@
 				type: 'spotify'
 			};
 			
-			const currentState = musicStore.getCurrentState();
-			const songIndex = currentState.queue.findIndex((s) => s.uri === uri);
+			// Get all tracks from the current list (musicList)
+			// Flatten all tracks from all letter groups
+			const allTracks = Object.values(musicList).flat().map(s => ({
+				...s,
+				type: 'spotify'
+			}));
 			
-			await musicStore.playTrack(track, songIndex);
+			// Find the index of the current track in the list
+			const songIndex = allTracks.findIndex((s) => s.uri === uri);
+			
+			await musicStore.playTrack(track, songIndex >= 0 ? songIndex : -1, allTracks);
 			showGrid = false;
 			
 			// Navigate to now-playing when playing a song

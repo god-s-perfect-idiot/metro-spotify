@@ -135,10 +135,15 @@
 		if (!spotifyApi || !song) return;
 
 		try {
-			const currentState = musicStore.getCurrentState();
-			const songIndex = currentState.queue.findIndex((s) => s.uri === uri);
+			const track = {
+				...song,
+				type: 'spotify'
+			};
 			
-			await musicStore.playTrack(song, songIndex >= 0 ? songIndex : 0);
+			// Find the index of the current track in the list
+			const songIndex = tracks.findIndex((s) => s.uri === uri);
+			
+			await musicStore.playTrack(track, songIndex >= 0 ? songIndex : -1, tracks);
 			router.goto('/now-playing');
 		} catch (error) {
 			console.error('Error playing song:', error);
