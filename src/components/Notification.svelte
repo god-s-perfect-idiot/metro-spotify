@@ -14,7 +14,7 @@
 </script>
 
 {#if visible}
-    <div class="fixed z-10 top-0 w-full px-2 py-4 text-xl toast font-[300]" style="background-color: {accentColor};">
+    <div class="fixed z-[100000] top-0 w-full px-2 py-4 text-xl toast font-[300]" style="background-color: {accentColor};">
         {content}
     </div>
 {/if}

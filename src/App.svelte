@@ -3,6 +3,7 @@
   import { currentRoute, router } from './lib/router.js';
   import { App as CapacitorApp } from '@capacitor/app';
   import HomePage from './pages/HomePage.svelte';
+  import CarouselHomePage from './pages/CarouselHomePage.svelte';
   import AuthPage from './pages/AuthPage.svelte';
   import SpotifyPage from './pages/SpotifyPage.svelte';
   import NowPlayingPage from './pages/NowPlayingPage.svelte';
@@ -212,9 +213,9 @@
       {:else if route === '/settings'}
         <SettingsPage {isExiting} />
       {:else if route === '/' || route === ''}
-        <HomePage isExiting={homePageIsExiting} />
+        <CarouselHomePage isExiting={homePageIsExiting} />
       {:else}
-        <HomePage isExiting={homePageIsExiting} />
+        <CarouselHomePage isExiting={homePageIsExiting} />
       {/if}
     </div>
     

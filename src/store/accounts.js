@@ -77,6 +77,10 @@ class AccountsStore {
     return result;
   }
 
+  getAccount(service) {
+    return this.accounts[service] || null;
+  }
+
   logout(service) {
     delete this.accounts[service];
     if (typeof window !== 'undefined') {

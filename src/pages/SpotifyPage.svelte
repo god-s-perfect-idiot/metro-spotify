@@ -99,6 +99,8 @@
 			setTimeout(() => loadAvailableDevices(), 2000);
 			setTimeout(() => loadAvailableDevices(), 4000);
 			await loadLikedSongs();
+			// Fetch and save username if not already in localStorage (fallback for existing users)
+			await fetchAndSaveUsername(token);
 			isInitializing = false;
 			console.log('✅ Spotify initialization complete');
 		} else {
@@ -118,6 +120,28 @@
 			musicStore.setSpotifyApi(spotifyApi);
 		} catch (error) {
 			console.error('Error initializing Spotify API:', error);
+		}
+	}
+
+	async function fetchAndSaveUsername(token) {
+		// Only fetch if username is not already in localStorage
+		if (localStorage.getItem('spotify_username')) {
+			return;
+		}
+
+		try {
+			if (!spotifyApi) {
+				const { default: SpotifyWebApi } = await import('spotify-web-api-js');
+				spotifyApi = new SpotifyWebApi();
+				spotifyApi.setAccessToken(token);
+			}
+			const userInfo = await spotifyApi.getMe();
+			const username = userInfo.display_name || userInfo.id || 'Spotify User';
+			localStorage.setItem('spotify_username', username);
+			console.log('✅ Username fetched and saved to localStorage:', username);
+		} catch (error) {
+			console.error('Error fetching username:', error);
+			// Continue even if username fetch fails
 		}
 	}
 
@@ -348,6 +372,8 @@
 		
 		accountsStore.logout('spotify');
 		accountsStore.cleanupStorage('spotify');
+		// Clear username from localStorage
+		localStorage.removeItem('spotify_username');
 		spotifyApi = null;
 		likedSongs = [];
 		musicList = {};

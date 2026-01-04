@@ -5,6 +5,7 @@
   import Icon from "@iconify/svelte";
 
   export let isExiting = false;
+  export let onBeforeNavigate = () => {}; // Callback to notify parent before navigation
   
   let internalIsExiting = false;
 
@@ -12,15 +13,16 @@
   $: accentColor = $accentColorStore;
   
   // Use internal exit state if we have it, otherwise use the prop
-  $: shouldShowExit = internalIsExiting || isExiting;
+  // But if onBeforeNavigate is provided, don't use internal exit (parent will handle it)
+  $: shouldShowExit = onBeforeNavigate ? isExiting : (internalIsExiting || isExiting);
 
   const menuItems = [
-    {
-      id: "now-playing",
-      label: "now playing",
-      route: "/now-playing",
-      icon: "ic:sharp-headphones",
-    },
+    // {
+    //   id: "now-playing",
+    //   label: "now playing",
+    //   route: "/now-playing",
+    //   icon: "ic:sharp-headphones",
+    // },
     { id: "songs", label: "songs", route: "/spotify", icon: "mdi:music" },
     {
       id: "playlists",
@@ -65,30 +67,28 @@
         addToast("coming soon");
         return;
     }
-    // Trigger exit animation, then navigate after animation completes
-    internalIsExiting = true;
-    setTimeout(() => {
-      router.goto(route);
-      internalIsExiting = false;
-    }, 200); // Match the animation duration
+    
+    // If parent provides onBeforeNavigate callback, use it (carousel will handle exit)
+    if (onBeforeNavigate) {
+      onBeforeNavigate(() => {
+        router.goto(route);
+      });
+    } else {
+      // Otherwise, handle exit internally (standalone HomePage)
+      internalIsExiting = true;
+      setTimeout(() => {
+        router.goto(route);
+        internalIsExiting = false;
+      }, 200); // Match the animation duration
+    }
   }
 </script>
 
-<div class="page-holder">
+<div class="page-holder !w-[90%] mt-4">
   <div
-    class="flex flex-col w-full font-[400] h-screen page overflow-x-hidden"
+    class="flex flex-col w-full font-[400] h-full page overflow-x-hidden"
     class:page-exit={shouldShowExit}
   >
-  <img
-    src="/logo.png"
-    alt="Metro Spotify"
-    class="h-32 w-32 object-contain absolute top-[-1rem] left-[-3rem]"
-  />
-
-  <div class="flex items-center gap-4 h-[10%] px-4">
-    <span class="text-[6rem] font-[200] whitespace-nowrap pl-16 mt-6">spotify</span>
-  </div>
-
   <div
     class="flex flex-col gap-6 pb-16 mt-12 overflow-y-auto overflow-x-hidden px-4"
   >
