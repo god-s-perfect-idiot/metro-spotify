@@ -23,10 +23,10 @@
 	});
 
 	async function initializeSpotify() {
-		const hasToken = accountsStore.hasValidToken('spotify');
+		const hasToken = await accountsStore.hasValidToken('spotify');
 		
 		if (hasToken) {
-			const token = accountsStore.getAccessToken('spotify');
+			const token = await accountsStore.getAccessToken('spotify');
 			await initializeSpotifyApi(token);
 			await loadAvailableDevices();
 			await loadArtists();
@@ -131,7 +131,7 @@
 	}
 
 	// Check if user is authenticated
-	$: isAuthenticated = accountsStore.isAuthenticated('spotify');
+	$: isAuthenticated = accountsStore.isAuthenticatedSync('spotify');
 </script>
 
 <div class="page-holder">

@@ -18,7 +18,7 @@
 	});
 
 	// Check if user is authenticated
-	$: isAuthenticated = accountsStore.isAuthenticated('spotify');
+	$: isAuthenticated = accountsStore.isAuthenticatedSync('spotify');
 </script>
 
 <div class="page-holder">

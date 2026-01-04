@@ -83,14 +83,14 @@
 
 	async function initializeSpotify() {
 		console.log('🔄 Initializing Spotify...');
-		const hasToken = accountsStore.hasValidToken('spotify');
-		const isAuth = accountsStore.isAuthenticated('spotify');
+		const hasToken = await accountsStore.hasValidToken('spotify');
+		const isAuth = await accountsStore.isAuthenticated('spotify');
 		console.log('📋 Auth status:', { hasToken, isAuth });
 		
 		// Check if we have a valid token
 		if (hasToken) {
 			console.log('✅ Valid token found, initializing Spotify API...');
-			const token = accountsStore.getAccessToken('spotify');
+			const token = await accountsStore.getAccessToken('spotify');
 			console.log('🎫 Token retrieved:', token ? 'Token exists' : 'No token');
 			await initializeSpotifyApi(token);
 			await initializeWebPlayer(token);
@@ -177,9 +177,10 @@
 		try {
 			const player = new window.Spotify.Player({
 				name: 'Metro Spotify',
-				getOAuthToken: (cb) => {
-					if (accountsStore.hasValidToken('spotify')) {
-						const currentToken = accountsStore.getAccessToken('spotify');
+				getOAuthToken: async (cb) => {
+					const hasToken = await accountsStore.hasValidToken('spotify');
+					if (hasToken) {
+						const currentToken = await accountsStore.getAccessToken('spotify');
 						cb(currentToken);
 					} else {
 						cb(initialToken);
@@ -431,7 +432,7 @@
 	}
 
 	// Check if user is authenticated
-	$: isAuthenticated = accountsStore.isAuthenticated('spotify');
+	$: isAuthenticated = accountsStore.isAuthenticatedSync('spotify');
 	$: {
 		if (browser) {
 			console.log('🔍 Auth state changed:', { isAuthenticated });

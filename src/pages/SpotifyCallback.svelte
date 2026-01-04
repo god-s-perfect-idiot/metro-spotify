@@ -139,8 +139,8 @@
 				}
 				
 				// Verify storage after save
-				const isAuth = accountsStore.isAuthenticated('spotify');
-				const hasToken = accountsStore.hasValidToken('spotify');
+				const isAuth = await accountsStore.isAuthenticated('spotify');
+				const hasToken = await accountsStore.hasValidToken('spotify');
 				console.log('✅ Auth verification after save:', { isAuth, hasToken });
 				
 				statusMessage = 'SUCCESS';

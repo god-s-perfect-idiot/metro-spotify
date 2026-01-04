@@ -31,7 +31,7 @@
       }
 
       // If not in localStorage, fetch from API
-      const token = accountsStore.getAccessToken("spotify");
+      const token = await accountsStore.getAccessToken("spotify");
       if (!token) {
         username = "";
         return;
@@ -92,7 +92,7 @@
     await tick();
 
     // Verify we're actually logged out before navigating
-    const isStillAuthenticated = accountsStore.isAuthenticated("spotify");
+    const isStillAuthenticated = await accountsStore.isAuthenticated("spotify");
     if (isStillAuthenticated) {
       console.error("Failed to logout - still authenticated");
       return;

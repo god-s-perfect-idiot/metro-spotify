@@ -78,7 +78,7 @@
 	}
 	
 	// Check if user is authenticated
-	$: isAuthenticated = accountsStore.isAuthenticated('spotify');
+	$: isAuthenticated = accountsStore.isAuthenticatedSync('spotify');
 	
 	// Determine current view state
 	$: viewState = (() => {

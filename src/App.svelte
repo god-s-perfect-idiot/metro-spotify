@@ -82,7 +82,7 @@
   // Subscribe to stores for bottom bar
   $: isExpanded = $bottomBarExpanded;
   $: isUnmounting = $bottomBarUnmounting;
-  $: isAuthenticated = accountsStore.isAuthenticated('spotify');
+  $: isAuthenticated = accountsStore.isAuthenticatedSync('spotify');
   $: currentTrackData = $currentTrack;
   $: nowPlayingTrack = currentTrackData && currentTrackData.type === 'spotify' ? currentTrackData : null;
   

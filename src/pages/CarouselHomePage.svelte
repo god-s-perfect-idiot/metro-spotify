@@ -15,14 +15,15 @@
   $: shouldExit = localIsExiting || isExiting;
   
   // Check authentication status - if not authenticated, redirect to login
-  $: isAuthenticated = accountsStore.isAuthenticated('spotify');
+  $: isAuthenticated = accountsStore.isAuthenticatedSync('spotify');
   
   $: {
     // Safety check: if we somehow render this page when not authenticated, redirect
     if (typeof window !== 'undefined' && !isAuthenticated) {
       // Use a small timeout to avoid race conditions with App.svelte's reactive check
-      setTimeout(() => {
-        if (!accountsStore.isAuthenticated('spotify')) {
+      setTimeout(async () => {
+        const isAuth = await accountsStore.isAuthenticated('spotify');
+        if (!isAuth) {
           router.replace('/');
         }
       }, 50);
