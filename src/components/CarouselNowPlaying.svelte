@@ -10,6 +10,15 @@
   export let onPlayNext = () => {};
   export let onTogglePlayPause = () => {};
 
+  let tappedControlId = null;
+
+  function handleControlTap(controlId) {
+    tappedControlId = controlId;
+    setTimeout(() => {
+      tappedControlId = null;
+    }, 200);
+  }
+
   function formatTime(seconds) {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -26,7 +35,7 @@
   <span class="text-5xl font-[300] h-auto py-1">now playing</span>
 
   {#if nowPlayingTrack}
-    <div class="flex flex-col gap-4 mt-4">
+    <div class="flex flex-col gap-2 mt-4">
       <!-- Album Art -->
       <div class="flex justify-start items-center w-full max-w-[60%]">
         {#if nowPlayingTrack?.album?.images}
@@ -82,16 +91,26 @@
       </div>
 
       <!-- Playback Controls -->
-      <div class="flex flex-row justify-between gap-4 mt-2 w-full max-w-[60%]">
+      <div class="flex flex-row justify-between gap-4 mt-2 w-full max-w-[60%] pb-2">
         <button
-          class="flex items-center justify-center border-2 border-white rounded-full p-1 w-10 h-10"
-          on:click={onPlayPrevious}
+          class="flex items-center justify-center border-2 border-white rounded-full p-1 w-10 h-10 control-button"
+          class:tapped={tappedControlId === 'previous'}
+          on:click={() => {
+            handleControlTap('previous');
+            onPlayPrevious();
+          }}
+          on:touchstart={() => handleControlTap('previous')}
         >
           <Icon icon="mdi:skip-previous" width="24" height="24" />
         </button>
         <button
-          class="flex items-center justify-center border-2 border-white rounded-full p-1 w-10 h-10"
-          on:click={onTogglePlayPause}
+          class="flex items-center justify-center border-2 border-white rounded-full p-1 w-10 h-10 control-button"
+          class:tapped={tappedControlId === 'playpause'}
+          on:click={() => {
+            handleControlTap('playpause');
+            onTogglePlayPause();
+          }}
+          on:touchstart={() => handleControlTap('playpause')}
         >
           <Icon
             icon={isPlayingState ? "mdi:pause" : "mdi:play"}
@@ -100,8 +119,13 @@
           />
         </button>
         <button
-          class="flex items-center justify-center border-2 border-white rounded-full p-1 w-10 h-10"
-          on:click={onPlayNext}
+          class="flex items-center justify-center border-2 border-white rounded-full p-1 w-10 h-10 control-button"
+          class:tapped={tappedControlId === 'next'}
+          on:click={() => {
+            handleControlTap('next');
+            onPlayNext();
+          }}
+          on:touchstart={() => handleControlTap('next')}
         >
           <Icon icon="mdi:skip-next" width="24" height="24" />
         </button>
@@ -118,3 +142,13 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .control-button {
+    transition: transform 0.1s ease-out;
+  }
+  
+  .control-button.tapped {
+    transform: translate(2px, 2px);
+  }
+</style>

@@ -8,6 +8,19 @@
   export let artists = [];
   export let onArtistClick = (artist) => {};
 
+  let tappedArtistId = null;
+
+  function handleArtistTap(artist) {
+    // Create a unique ID for the artist item
+    const artistId = `${artist.id}-${artist.name}`;
+    tappedArtistId = artistId;
+
+    // Reset after animation completes
+    setTimeout(() => {
+      tappedArtistId = null;
+    }, 200);
+  }
+
   $: accentColor = $accentColorStore;
   $: textClass = $textColorClassStore;
 </script>
@@ -27,9 +40,15 @@
       </div>
     {:else if !isLoading && artists.length > 0}
       {#each artists as artist}
+        {@const artistId = `${artist.id}-${artist.name}`}
         <button
-          class="flex flex-row gap-4 items-center w-full min-w-0"
-          on:click={() => onArtistClick(artist)}
+          class="flex flex-row gap-4 items-center w-full min-w-0 artist-item"
+          class:tapped={tappedArtistId === artistId}
+          on:click={() => {
+            handleArtistTap(artist);
+            onArtistClick(artist);
+          }}
+          on:touchstart={() => handleArtistTap(artist)}
         >
           {#if artist.images && artist.images.length > 0}
             <img
@@ -86,4 +105,14 @@
     {/if}
   </div>
 </div>
+
+<style>
+  .artist-item {
+    transition: transform 0.1s ease-out;
+  }
+
+  .artist-item.tapped {
+    transform: translate(2px, 2px);
+  }
+</style>
 

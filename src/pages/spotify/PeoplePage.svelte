@@ -9,6 +9,19 @@
   export let users = [];
   export let onUserClick = (user) => {};
 
+  let tappedUserId = null;
+
+  function handleUserTap(user) {
+    // Create a unique ID for the user item
+    const userId = `${user.id}-${user.display_name || user.id}`;
+    tappedUserId = userId;
+
+    // Reset after animation completes
+    setTimeout(() => {
+      tappedUserId = null;
+    }, 200);
+  }
+
   $: accentColor = $accentColorStore;
   $: textClass = $textColorClassStore;
 </script>
@@ -27,9 +40,15 @@
       </div>
     {:else if !isLoading && (currentUser || users.length > 0)}
       {#if currentUser}
+        {@const currentUserId = `${currentUser.id}-${currentUser.display_name || currentUser.id}`}
         <button
-          class="flex flex-row gap-4 items-center w-full min-w-0"
-          on:click={() => onUserClick(currentUser)}
+          class="flex flex-row gap-4 items-center w-full min-w-0 user-item"
+          class:tapped={tappedUserId === currentUserId}
+          on:click={() => {
+            handleUserTap(currentUser);
+            onUserClick(currentUser);
+          }}
+          on:touchstart={() => handleUserTap(currentUser)}
         >
           {#if currentUser.images && currentUser.images.length > 0}
             <img
@@ -61,9 +80,15 @@
         </button>
       {/if}
       {#each users as user}
+        {@const userId = `${user.id}-${user.display_name || user.id}`}
         <button
-          class="flex flex-row gap-4 items-center w-full min-w-0"
-          on:click={() => onUserClick(user)}
+          class="flex flex-row gap-4 items-center w-full min-w-0 user-item"
+          class:tapped={tappedUserId === userId}
+          on:click={() => {
+            handleUserTap(user);
+            onUserClick(user);
+          }}
+          on:touchstart={() => handleUserTap(user)}
         >
           {#if user.images && user.images.length > 0}
             <img
@@ -120,4 +145,14 @@
     {/if}
   </div>
 </div>
+
+<style>
+  .user-item {
+    transition: transform 0.1s ease-out;
+  }
+
+  .user-item.tapped {
+    transform: translate(2px, 2px);
+  }
+</style>
 

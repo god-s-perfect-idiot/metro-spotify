@@ -14,6 +14,7 @@
 	export let onShowGrid = () => {};
 	
 	let gridExiting = false;
+	let tappedSongId = null;
 	
 	// When showGrid becomes false, reset gridExiting
 	$: if (!showGrid) {
@@ -24,6 +25,17 @@
 	function handleLetterClickWithExit(char) {
 		gridExiting = true;
 		onLetterClick(char);
+	}
+	
+	function handleSongTap(song) {
+		// Create a unique ID for the song item
+		const songId = `${song.uri}-${song.name}`;
+		tappedSongId = songId;
+		
+		// Reset after animation completes
+		setTimeout(() => {
+			tappedSongId = null;
+		}, 200);
 	}
 	
 	$: accentColor = $accentColorStore;
@@ -62,9 +74,15 @@
 						{musicEntry[0]}
 					</button>
 					{#each musicEntry[1] as song}
+						{@const songId = `${song.uri}-${song.name}`}
 						<button
-							class="flex flex-row gap-4 items-center w-full min-w-0"
-							on:click={() => onPlaySong(song.uri, song)}
+							class="flex flex-row gap-4 items-center w-full min-w-0 song-item"
+							class:tapped={tappedSongId === songId}
+							on:click={() => {
+								handleSongTap(song);
+								onPlaySong(song.uri, song);
+							}}
+							on:touchstart={() => handleSongTap(song)}
 						>
 							{#if song.album?.images && song.album.images.length > 0}
 								<img
@@ -109,4 +127,14 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	.song-item {
+		transition: transform 0.1s ease-out;
+	}
+	
+	.song-item.tapped {
+		transform: translate(2px, 2px);
+	}
+</style>
 

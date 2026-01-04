@@ -11,6 +11,19 @@
 	export let tracks = [];
 	export let onPlaySong = (uri, song) => {};
 	
+	let tappedTrackId = null;
+	
+	function handleTrackTap(track) {
+		// Create a unique ID for the track item
+		const trackId = `${track.uri}-${track.name}`;
+		tappedTrackId = trackId;
+		
+		// Reset after animation completes
+		setTimeout(() => {
+			tappedTrackId = null;
+		}, 200);
+	}
+	
 	$: accentColor = $accentColorStore;
 	$: textClass = $textColorClassStore;
 </script>
@@ -30,9 +43,15 @@
 			</div>
 		{:else if !isLoading && tracks.length > 0}
 			{#each tracks as track}
+				{@const trackId = `${track.uri}-${track.name}`}
 				<button
-					class="flex flex-row gap-4 items-center w-full min-w-0"
-					on:click={() => onPlaySong(track.uri, track)}
+					class="flex flex-row gap-4 items-center w-full min-w-0 song-item"
+					class:tapped={tappedTrackId === trackId}
+					on:click={() => {
+						handleTrackTap(track);
+						onPlaySong(track.uri, track);
+					}}
+					on:touchstart={() => handleTrackTap(track)}
 				>
 					{#if track.album?.images && track.album.images.length > 0}
 						<img
@@ -79,4 +98,14 @@
 		{/if}
 	</div>
 </div>
+
+<style>
+	.song-item {
+		transition: transform 0.1s ease-out;
+	}
+	
+	.song-item.tapped {
+		transform: translate(2px, 2px);
+	}
+</style>
 

@@ -9,6 +9,19 @@
   export let playlists = [];
   export let onPlaylistClick = (playlist) => {};
 
+  let tappedPlaylistId = null;
+
+  function handlePlaylistTap(playlist) {
+    // Create a unique ID for the playlist item
+    const playlistId = `${playlist.id}-${playlist.name}`;
+    tappedPlaylistId = playlistId;
+
+    // Reset after animation completes
+    setTimeout(() => {
+      tappedPlaylistId = null;
+    }, 200);
+  }
+
   $: accentColor = $accentColorStore;
   $: textClass = $textColorClassStore;
 </script>
@@ -28,9 +41,15 @@
       </div>
     {:else if !isLoading && playlists.length > 0}
       {#each playlists as playlist}
+        {@const playlistId = `${playlist.id}-${playlist.name}`}
         <button
-          class="flex flex-row gap-4 items-center w-full min-w-0"
-          on:click={() => onPlaylistClick(playlist)}
+          class="flex flex-row gap-4 items-center w-full min-w-0 playlist-item"
+          class:tapped={tappedPlaylistId === playlistId}
+          on:click={() => {
+            handlePlaylistTap(playlist);
+            onPlaylistClick(playlist);
+          }}
+          on:touchstart={() => handlePlaylistTap(playlist)}
         >
           {#if playlist.images && playlist.images.length > 0}
             <img
@@ -88,4 +107,14 @@
     {/if}
   </div>
 </div>
+
+<style>
+  .playlist-item {
+    transition: transform 0.1s ease-out;
+  }
+
+  .playlist-item.tapped {
+    transform: translate(2px, 2px);
+  }
+</style>
 

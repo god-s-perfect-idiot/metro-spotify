@@ -8,6 +8,19 @@
   export let albums = [];
   export let onAlbumClick = (album) => {};
 
+  let tappedAlbumId = null;
+
+  function handleAlbumTap(album) {
+    // Create a unique ID for the album item
+    const albumId = `${album.id}-${album.name}`;
+    tappedAlbumId = albumId;
+
+    // Reset after animation completes
+    setTimeout(() => {
+      tappedAlbumId = null;
+    }, 200);
+  }
+
   $: accentColor = $accentColorStore;
   $: textClass = $textColorClassStore;
 </script>
@@ -27,9 +40,15 @@
       </div>
     {:else if !isLoading && albums.length > 0}
       {#each albums as album}
+        {@const albumId = `${album.id}-${album.name}`}
         <button
-          class="flex flex-row gap-4 items-center w-full min-w-0"
-          on:click={() => onAlbumClick(album)}
+          class="flex flex-row gap-4 items-center w-full min-w-0 album-item"
+          class:tapped={tappedAlbumId === albumId}
+          on:click={() => {
+            handleAlbumTap(album);
+            onAlbumClick(album);
+          }}
+          on:touchstart={() => handleAlbumTap(album)}
         >
           {#if album.images && album.images.length > 0}
             <img
@@ -86,4 +105,14 @@
     {/if}
   </div>
 </div>
+
+<style>
+  .album-item {
+    transition: transform 0.1s ease-out;
+  }
+
+  .album-item.tapped {
+    transform: translate(2px, 2px);
+  }
+</style>
 
