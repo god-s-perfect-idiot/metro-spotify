@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { mediaServiceBridge } from '../lib/media-service.js';
 
 // Music store for managing playback state
 class MusicStore {
@@ -15,6 +16,36 @@ class MusicStore {
     
     this.pollingInterval = null;
     this.startPolling();
+    
+    // Subscribe to track and playback state changes to update media service
+    this.currentTrack.subscribe(track => this._onTrackChange(track));
+    this.isPlaying.subscribe(playing => this._onPlaybackStateChange(playing));
+  }
+  
+  _onTrackChange(track) {
+    if (track) {
+      const trackName = track.name || '';
+      const artistName = track.artists && track.artists.length > 0 
+        ? track.artists.map(a => a.name).join(', ') 
+        : '';
+      const playing = this.getCurrentState().isPlaying;
+      mediaServiceBridge.updateMetadata(trackName, artistName, playing);
+    }
+  }
+  
+  _onPlaybackStateChange(playing) {
+    const track = this.getCurrentState().currentTrack;
+    if (track) {
+      const trackName = track.name || '';
+      const artistName = track.artists && track.artists.length > 0 
+        ? track.artists.map(a => a.name).join(', ') 
+        : '';
+      mediaServiceBridge.updatePlaybackState(playing);
+      mediaServiceBridge.updateMetadata(trackName, artistName, playing);
+    } else if (!playing) {
+      // If no track and not playing, stop the service
+      mediaServiceBridge.stopService();
+    }
   }
 
   setSpotifyApi(api) {
@@ -69,6 +100,13 @@ class MusicStore {
       this.currentTrack.set(track);
       this.serviceType.set(track.type || 'spotify');
       this.isPlaying.set(true);
+      
+      // Start media service
+      const trackName = track.name || '';
+      const artistName = track.artists && track.artists.length > 0 
+        ? track.artists.map(a => a.name).join(', ') 
+        : '';
+      mediaServiceBridge.startService(trackName, artistName, true);
     } catch (error) {
       console.error('Error playing track:', error);
       throw error;
@@ -205,6 +243,9 @@ class MusicStore {
     this.serviceType.set(null);
     this.currentIndex.set(-1);
     this.queue.set([]);
+    
+    // Stop media service
+    mediaServiceBridge.stopService();
   }
 
   getCurrentState() {
