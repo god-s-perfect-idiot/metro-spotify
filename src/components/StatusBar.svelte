@@ -163,12 +163,12 @@
 		// Battery drops second (150ms delay)
 		setTimeout(() => {
 			batteryAnimated = true;
-		}, 200);
+		}, 400);
 		
 		// Clock drops last (300ms delay)
 		setTimeout(() => {
 			clockAnimated = true;
-		}, 350);
+		}, 750);
 	}
 </script>
 
@@ -283,7 +283,7 @@
 	}
 
 	.wifi-animated {
-		animation: wifiBounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+		animation: wifiBounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
 	}
 
 	.battery-container {
@@ -293,7 +293,7 @@
 	}
 
 	.battery-animated {
-		animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+		animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
 	}
 
 	.clock {
@@ -303,7 +303,7 @@
 	}
 
 	.clock-animated {
-		animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+		animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
 	}
 
 	@keyframes wifiBounceIn {
