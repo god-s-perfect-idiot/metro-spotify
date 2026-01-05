@@ -5,6 +5,7 @@
 	import { accountsStore } from '../store/accounts.js';
 	import { musicStore } from '../store/music.js';
 	import { addToast } from '../store/toast.js';
+	import { cacheManager } from '../lib/cache.js';
 	
 	// Page components
 	import PeoplePage from './spotify/PeoplePage.svelte';
@@ -88,61 +89,68 @@
 
 		isLoading = true;
 		try {
-			// Note: Spotify Web API doesn't provide a direct endpoint to get all followed users.
-			// We can get users from followed playlists as a workaround.
-			// This will show users whose playlists you follow.
+			const cacheKey = cacheManager.getPeopleKey();
 			
-			let allUsers = [];
-			let offset = 0;
-			const limit = 50;
-			let hasMore = true;
+			const cachedData = await cacheManager.getOrFetch(cacheKey, async () => {
+				// Note: Spotify Web API doesn't provide a direct endpoint to get all followed users.
+				// We can get users from followed playlists as a workaround.
+				// This will show users whose playlists you follow.
+				
+				let allUsers = [];
+				let offset = 0;
+				const limit = 50;
+				let hasMore = true;
 
-			// Get user's playlists to find playlist owners
-			while (hasMore) {
-				const response = await spotifyApi.getUserPlaylists({ limit, offset });
-				const fetchedPlaylists = response.items || [];
+				// Get user's playlists to find playlist owners
+				while (hasMore) {
+					const response = await spotifyApi.getUserPlaylists({ limit, offset });
+					const fetchedPlaylists = response.items || [];
 
-				if (fetchedPlaylists.length === 0) {
-					hasMore = false;
-				} else {
-					// Extract unique users from playlists
-					const playlistOwners = fetchedPlaylists
-						.map(playlist => playlist.owner)
-						.filter(owner => owner && owner.id && owner.id !== 'spotify') // Exclude Spotify-owned playlists
-						.filter((owner, index, self) => 
-							index === self.findIndex(o => o.id === owner.id) // Get unique users
-						);
+					if (fetchedPlaylists.length === 0) {
+						hasMore = false;
+					} else {
+						// Extract unique users from playlists
+						const playlistOwners = fetchedPlaylists
+							.map(playlist => playlist.owner)
+							.filter(owner => owner && owner.id && owner.id !== 'spotify')
+							.filter((owner, index, self) => 
+								index === self.findIndex(o => o.id === owner.id)
+							);
 
-					// Fetch full user profiles for each owner
-					for (const owner of playlistOwners) {
-						try {
-							const userProfile = await spotifyApi.getUser(owner.id);
-							if (userProfile && !allUsers.find(u => u.id === userProfile.id)) {
-								allUsers.push(userProfile);
-							}
-						} catch (err) {
-							// If we can't get the full profile, use the owner info we have
-							if (!allUsers.find(u => u.id === owner.id)) {
-								allUsers.push({
-									id: owner.id,
-									display_name: owner.display_name || owner.id,
-									images: owner.images || [],
-									external_urls: owner.external_urls || {}
-								});
+						// Fetch full user profiles for each owner
+						for (const owner of playlistOwners) {
+							try {
+								const userProfile = await spotifyApi.getUser(owner.id);
+								if (userProfile && !allUsers.find(u => u.id === userProfile.id)) {
+									allUsers.push(userProfile);
+								}
+							} catch (err) {
+								if (!allUsers.find(u => u.id === owner.id)) {
+									allUsers.push({
+										id: owner.id,
+										display_name: owner.display_name || owner.id,
+										images: owner.images || [],
+										external_urls: owner.external_urls || {}
+									});
+								}
 							}
 						}
-					}
 
-					offset += limit;
+						offset += limit;
 
-					if (fetchedPlaylists.length < limit || !response.next) {
-						hasMore = false;
+						if (fetchedPlaylists.length < limit || !response.next) {
+							hasMore = false;
+						}
 					}
 				}
-			}
 
-			users = allUsers.filter((user) => user.display_name && user.display_name.trim() !== '');
-			users.sort((a, b) => a.display_name.localeCompare(b.display_name, undefined, { sensitivity: 'base' }));
+				const filtered = allUsers.filter((user) => user.display_name && user.display_name.trim() !== '');
+				filtered.sort((a, b) => a.display_name.localeCompare(b.display_name, undefined, { sensitivity: 'base' }));
+				
+				return filtered;
+			}, { cacheType: 'people' });
+
+			users = cachedData;
 		} catch (error) {
 			console.error('Error loading followed users:', error);
 			if (error.status === 401) {

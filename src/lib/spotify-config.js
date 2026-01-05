@@ -44,7 +44,7 @@ export function getRedirectUri() {
 	}
 	
 	// For web browser, use the web callback URL
-    const authWebOverride = "https://a86227c2cafb.ngrok-free.app/callback";
+    const authWebOverride = "https://808775ef673e.ngrok-free.app/callback";
 	return authWebOverride || `${window.location.origin}/spotify/callback`;
 }
 

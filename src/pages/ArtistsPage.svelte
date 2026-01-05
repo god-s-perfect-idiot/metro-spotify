@@ -5,6 +5,7 @@
 	import { accountsStore } from '../store/accounts.js';
 	import { musicStore } from '../store/music.js';
 	import { addToast } from '../store/toast.js';
+	import { cacheManager } from '../lib/cache.js';
 	
 	// Page components
 	import ArtistsPage from './spotify/ArtistsPage.svelte';
@@ -75,35 +76,43 @@
 
 		isLoading = true;
 		try {
-			let allArtists = [];
-			let after = null;
-			const limit = 50;
-			let hasMore = true;
+			const cacheKey = cacheManager.getArtistsKey();
+			
+			const cachedData = await cacheManager.getOrFetch(cacheKey, async () => {
+				let allArtists = [];
+				let after = null;
+				const limit = 50;
+				let hasMore = true;
 
-			while (hasMore) {
-				// Only include 'after' in options if it's not null
-				const options = { limit };
-				if (after) {
-					options.after = after;
-				}
-				
-				const response = await spotifyApi.getFollowedArtists(options);
-				const fetchedArtists = response.artists?.items || [];
+				while (hasMore) {
+					// Only include 'after' in options if it's not null
+					const options = { limit };
+					if (after) {
+						options.after = after;
+					}
+					
+					const response = await spotifyApi.getFollowedArtists(options);
+					const fetchedArtists = response.artists?.items || [];
 
-				if (fetchedArtists.length === 0) {
-					hasMore = false;
-				} else {
-					allArtists = allArtists.concat(fetchedArtists);
-					after = response.artists.cursors?.after;
-
-					if (!after || fetchedArtists.length < limit) {
+					if (fetchedArtists.length === 0) {
 						hasMore = false;
+					} else {
+						allArtists = allArtists.concat(fetchedArtists);
+						after = response.artists.cursors?.after;
+
+						if (!after || fetchedArtists.length < limit) {
+							hasMore = false;
+						}
 					}
 				}
-			}
 
-			artists = allArtists.filter((artist) => artist.name && artist.name.trim() !== '');
-			artists.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+				const filtered = allArtists.filter((artist) => artist.name && artist.name.trim() !== '');
+				filtered.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+				
+				return filtered;
+			}, { cacheType: 'artists' });
+
+			artists = cachedData;
 		} catch (error) {
 			console.error('Error loading artists:', error);
 			if (error.status === 401) {

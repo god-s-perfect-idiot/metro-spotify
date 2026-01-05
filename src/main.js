@@ -2,6 +2,7 @@ import './app.css';
 import App from './App.svelte';
 import { App as CapacitorApp } from '@capacitor/app';
 import { StatusBar, Style } from '@capacitor/status-bar';
+import { cacheManager } from './lib/cache.js';
 
 // Initialize Capacitor plugins
 async function initCapacitor() {
@@ -24,6 +25,9 @@ async function initCapacitor() {
         StatusBar.setBackgroundColor({ color: '#000000' }).catch(() => {});
         StatusBar.setStyle({ style: Style.Light }).catch(() => {});
         StatusBar.hide().catch(() => {});
+      } else {
+        // App went to background - mark cache for clearing on next open
+        cacheManager.markForClear();
       }
     });
     

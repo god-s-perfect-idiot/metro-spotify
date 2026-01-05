@@ -5,6 +5,7 @@
 	import { accountsStore } from '../store/accounts.js';
 	import { musicStore } from '../store/music.js';
 	import { addToast } from '../store/toast.js';
+	import { cacheManager } from '../lib/cache.js';
 	
 	// Page components
 	import PlaylistsPage from './spotify/PlaylistsPage.svelte';
@@ -75,29 +76,37 @@
 
 		isLoading = true;
 		try {
-			let allPlaylists = [];
-			let offset = 0;
-			const limit = 50;
-			let hasMore = true;
+			const cacheKey = cacheManager.getPlaylistsKey();
+			
+			const cachedData = await cacheManager.getOrFetch(cacheKey, async () => {
+				let allPlaylists = [];
+				let offset = 0;
+				const limit = 50;
+				let hasMore = true;
 
-			while (hasMore) {
-				const response = await spotifyApi.getUserPlaylists({ limit, offset });
-				const fetchedPlaylists = response.items || [];
+				while (hasMore) {
+					const response = await spotifyApi.getUserPlaylists({ limit, offset });
+					const fetchedPlaylists = response.items || [];
 
-				if (fetchedPlaylists.length === 0) {
-					hasMore = false;
-				} else {
-					allPlaylists = allPlaylists.concat(fetchedPlaylists);
-					offset += limit;
-
-					if (fetchedPlaylists.length < limit) {
+					if (fetchedPlaylists.length === 0) {
 						hasMore = false;
+					} else {
+						allPlaylists = allPlaylists.concat(fetchedPlaylists);
+						offset += limit;
+
+						if (fetchedPlaylists.length < limit) {
+							hasMore = false;
+						}
 					}
 				}
-			}
 
-			playlists = allPlaylists.filter((playlist) => playlist.name && playlist.name.trim() !== '');
-			playlists.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+				const filtered = allPlaylists.filter((playlist) => playlist.name && playlist.name.trim() !== '');
+				filtered.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+				
+				return filtered;
+			}, { cacheType: 'playlists' });
+
+			playlists = cachedData;
 		} catch (error) {
 			console.error('Error loading playlists:', error);
 			if (error.status === 401) {

@@ -5,6 +5,7 @@
 	import { accountsStore } from '../store/accounts.js';
 	import { musicStore } from '../store/music.js';
 	import { addToast } from '../store/toast.js';
+	import { cacheManager } from '../lib/cache.js';
 	
 	// Page components
 	import AlbumTracksPage from './spotify/AlbumTracksPage.svelte';
@@ -100,50 +101,54 @@
 
 		isLoading = true;
 		try {
-			// Get album info
+			const cacheKey = cacheManager.getAlbumTracksKey(albumId);
+			
+			// Get album info (not cached as it might change)
 			const albumInfo = await spotifyApi.getAlbum(albumId);
 			albumName = albumInfo.name || 'Album';
 			albumArtist = albumInfo.artists?.map((a) => a.name).join(', ') || 'Unknown Artist';
 			copyright = albumInfo.copyrights?.map((c) => c.text).join('\n') || '';
 
-			// Load all tracks
-			let allTracks = [];
-			let offset = 0;
-			const limit = 50;
-			let hasMore = true;
+			// Load tracks with caching
+			const cachedData = await cacheManager.getOrFetch(cacheKey, async () => {
+				let allTracks = [];
+				let offset = 0;
+				const limit = 50;
+				let hasMore = true;
 
-			while (hasMore) {
-				const response = await spotifyApi.getAlbumTracks(albumId, { limit, offset });
-				const fetchedTracks = response.items.filter((track) => track && track.uri);
+				while (hasMore) {
+					const response = await spotifyApi.getAlbumTracks(albumId, { limit, offset });
+					const fetchedTracks = response.items.filter((track) => track && track.uri);
 
-				if (fetchedTracks.length === 0) {
-					hasMore = false;
-				} else {
-					// Enrich tracks with album info
-					const enrichedTracks = fetchedTracks.map(track => ({
-						...track,
-						album: {
-							id: albumInfo.id,
-							name: albumInfo.name,
-							images: albumInfo.images,
-							artists: albumInfo.artists
-						}
-					}));
-					
-					allTracks = allTracks.concat(enrichedTracks);
-					offset += limit;
-
-					if (fetchedTracks.length < limit || !response.next) {
+					if (fetchedTracks.length === 0) {
 						hasMore = false;
+					} else {
+						const enrichedTracks = fetchedTracks.map(track => ({
+							...track,
+							album: {
+								id: albumInfo.id,
+								name: albumInfo.name,
+								images: albumInfo.images,
+								artists: albumInfo.artists
+							}
+						}));
+						
+						allTracks = allTracks.concat(enrichedTracks);
+						offset += limit;
+
+						if (fetchedTracks.length < limit || !response.next) {
+							hasMore = false;
+						}
 					}
 				}
-			}
 
-			// Set tracks with type
-			tracks = allTracks.map(track => ({
-				...track,
-				type: 'spotify'
-			}));
+				return allTracks.map(track => ({
+					...track,
+					type: 'spotify'
+				}));
+			}, { cacheType: 'album_tracks' });
+
+			tracks = cachedData;
 
 			// Set queue to album tracks
 			musicStore.setQueue(tracks);

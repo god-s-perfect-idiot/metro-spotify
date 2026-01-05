@@ -7,6 +7,7 @@
 	import { musicStore, currentTrack, isPlaying, playbackProgress } from '../store/music.js';
 	import { addToast } from '../store/toast.js';
 	import { bottomBarExpanded } from '../store/bottomBar.js';
+	import { cacheManager } from '../lib/cache.js';
 	
 	// Page components
 	import LibraryPage from './spotify/LibraryPage.svelte';
@@ -257,31 +258,39 @@
 
 		isLoading = true;
 		try {
-			let allSongs = [];
-			let offset = 0;
-			const limit = 50;
-			let hasMore = true;
+			const cacheKey = cacheManager.getLikedSongsKey();
+			
+			const cachedData = await cacheManager.getOrFetch(cacheKey, async () => {
+				// Fetch all songs
+				let allSongs = [];
+				let offset = 0;
+				const limit = 50;
+				let hasMore = true;
 
-			while (hasMore) {
-				const response = await spotifyApi.getMySavedTracks({ limit, offset });
-				const songs = response.items.map((item) => item.track);
+				while (hasMore) {
+					const response = await spotifyApi.getMySavedTracks({ limit, offset });
+					const songs = response.items.map((item) => item.track);
 
-				if (songs.length === 0) {
-					hasMore = false;
-				} else {
-					allSongs = allSongs.concat(songs);
-					offset += limit;
-
-					if (songs.length < limit) {
+					if (songs.length === 0) {
 						hasMore = false;
+					} else {
+						allSongs = allSongs.concat(songs);
+						offset += limit;
+
+						if (songs.length < limit) {
+							hasMore = false;
+						}
 					}
 				}
-				// Limit for development
-				// hasMore = false;
-			}
 
-			likedSongs = allSongs.filter((song) => song.name && song.name.trim() !== '');
-			likedSongs.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+				// Filter and sort
+				const filtered = allSongs.filter((song) => song.name && song.name.trim() !== '');
+				filtered.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+				
+				return filtered;
+			}, { cacheType: 'liked_songs' });
+
+			likedSongs = cachedData;
 
 			const tracksWithType = likedSongs.map(song => ({
 				...song,

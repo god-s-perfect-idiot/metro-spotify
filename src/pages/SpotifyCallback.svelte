@@ -173,34 +173,11 @@
 		class="flex flex-col items-center justify-center w-full h-full page font-[400]"
 		class:page-animated={hasAnimated}
 	>
-		<div class="flex flex-col items-start gap-4 px-4">
+		<div class="flex flex-col items-center gap-4 px-4 w-full">
 			<!-- Status Text -->
-			<div class="flex flex-col items-start">
-				<span class="{textClass} text-lg font-[200] capitalize tracking-wide">
-					{statusMessage.toLowerCase()}
-				</span>
-				{#if statusMessage === 'CONNECTING' || statusMessage === 'AUTHENTICATING' || statusMessage === 'STORING'}
-					<Loader />
-				{/if}
+			<div class="flex flex-col items-center">
+				<Loader />
 			</div>
-			
-			<!-- Debug Toggle (only in development) -->
-			{#if import.meta.env.DEV}
-				<button
-					class="{textClass} text-base font-[300] border-2 border-white absolute bottom-4 left-4 px-2 py-1 lowercase"
-					on:click={() => showDebug = !showDebug}
-				>
-					{showDebug ? 'HIDE DEBUG' : 'SHOW DEBUG'}
-				</button>
-				
-				{#if showDebug}
-					<div class="bg-black bg-opacity-50 p-4 max-w-md w-full">
-						<pre class="{textClass} text-xs font-mono whitespace-pre-wrap break-all">
-							{JSON.stringify({ status: statusMessage }, null, 2)}
-						</pre>
-					</div>
-				{/if}
-			{/if}
 		</div>
 	</div>
 </div>

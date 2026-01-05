@@ -116,7 +116,7 @@
 <div class="status-bar {textColorClass}">
 	<div class="status-left">
 		<div class="status-item wifi-icon" title="Network: {isOnline ? connectionType : 'Offline'}">
-			<Icon icon='{getNetworkIcon()}' width="22" height="22" />
+			<Icon icon='{getNetworkIcon()}' width="20" height="20" />
 		</div>
 	</div>
 
@@ -167,7 +167,7 @@
 		margin: 0;
 		width: 100%;
 		box-sizing: border-box;
-		height: 24px; /* Standard Android status bar height */
+		height: 2rem; /* Standard Android status bar height */
 		background-color: #000000;
 	}
 
@@ -181,7 +181,7 @@
 	.status-right {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: 0.75rem;
 		padding-right: 1rem;
 	}
 
@@ -198,8 +198,8 @@
 	}
 
 	.battery-box {
-		width: 26px;
-		height: 12px;
+		width: 25px;
+		height: 11px;
 		border: 1.5px solid currentColor;
 		position: relative;
 		overflow: hidden;

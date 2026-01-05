@@ -5,6 +5,7 @@
 	import { accountsStore } from '../store/accounts.js';
 	import { musicStore } from '../store/music.js';
 	import { addToast } from '../store/toast.js';
+	import { cacheManager } from '../lib/cache.js';
 	
 	// Page components
 	import AlbumsPage from './spotify/AlbumsPage.svelte';
@@ -75,29 +76,37 @@
 
 		isLoading = true;
 		try {
-			let allAlbums = [];
-			let offset = 0;
-			const limit = 50;
-			let hasMore = true;
+			const cacheKey = cacheManager.getAlbumsKey();
+			
+			const cachedData = await cacheManager.getOrFetch(cacheKey, async () => {
+				let allAlbums = [];
+				let offset = 0;
+				const limit = 50;
+				let hasMore = true;
 
-			while (hasMore) {
-				const response = await spotifyApi.getMySavedAlbums({ limit, offset });
-				const fetchedAlbums = response.items.map((item) => item.album);
+				while (hasMore) {
+					const response = await spotifyApi.getMySavedAlbums({ limit, offset });
+					const fetchedAlbums = response.items.map((item) => item.album);
 
-				if (fetchedAlbums.length === 0) {
-					hasMore = false;
-				} else {
-					allAlbums = allAlbums.concat(fetchedAlbums);
-					offset += limit;
-
-					if (fetchedAlbums.length < limit) {
+					if (fetchedAlbums.length === 0) {
 						hasMore = false;
+					} else {
+						allAlbums = allAlbums.concat(fetchedAlbums);
+						offset += limit;
+
+						if (fetchedAlbums.length < limit) {
+							hasMore = false;
+						}
 					}
 				}
-			}
 
-			albums = allAlbums.filter((album) => album.name && album.name.trim() !== '');
-			albums.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+				const filtered = allAlbums.filter((album) => album.name && album.name.trim() !== '');
+				filtered.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+				
+				return filtered;
+			}, { cacheType: 'albums' });
+
+			albums = cachedData;
 		} catch (error) {
 			console.error('Error loading albums:', error);
 			if (error.status === 401) {

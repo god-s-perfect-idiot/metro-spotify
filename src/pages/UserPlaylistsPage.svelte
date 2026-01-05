@@ -5,6 +5,7 @@
 	import { accountsStore } from '../store/accounts.js';
 	import { musicStore } from '../store/music.js';
 	import { addToast } from '../store/toast.js';
+	import { cacheManager } from '../lib/cache.js';
 	
 	// Page components
 	import UserPlaylistsPage from './spotify/UserPlaylistsPage.svelte';
@@ -98,7 +99,9 @@
 
 		isLoading = true;
 		try {
-			// Get user info first
+			const cacheKey = cacheManager.getUserPlaylistsKey(userId);
+			
+			// Get user info first (not cached)
 			try {
 				const userInfo = await spotifyApi.getUser(userId);
 				userName = userInfo.display_name || userInfo.id || 'User';
@@ -106,30 +109,36 @@
 				userName = userId;
 			}
 
-			// Load user's playlists
-			let allPlaylists = [];
-			let offset = 0;
-			const limit = 50;
-			let hasMore = true;
+			// Load user's playlists with caching
+			const cachedData = await cacheManager.getOrFetch(cacheKey, async () => {
+				let allPlaylists = [];
+				let offset = 0;
+				const limit = 50;
+				let hasMore = true;
 
-			while (hasMore) {
-				const response = await spotifyApi.getUserPlaylists(userId, { limit, offset });
-				const fetchedPlaylists = response.items || [];
+				while (hasMore) {
+					const response = await spotifyApi.getUserPlaylists(userId, { limit, offset });
+					const fetchedPlaylists = response.items || [];
 
-				if (fetchedPlaylists.length === 0) {
-					hasMore = false;
-				} else {
-					allPlaylists = allPlaylists.concat(fetchedPlaylists);
-					offset += limit;
-
-					if (fetchedPlaylists.length < limit || !response.next) {
+					if (fetchedPlaylists.length === 0) {
 						hasMore = false;
+					} else {
+						allPlaylists = allPlaylists.concat(fetchedPlaylists);
+						offset += limit;
+
+						if (fetchedPlaylists.length < limit || !response.next) {
+							hasMore = false;
+						}
 					}
 				}
-			}
 
-			playlists = allPlaylists.filter((playlist) => playlist.name && playlist.name.trim() !== '');
-			playlists.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+				const filtered = allPlaylists.filter((playlist) => playlist.name && playlist.name.trim() !== '');
+				filtered.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+				
+				return filtered;
+			}, { cacheType: 'user_playlists' });
+
+			playlists = cachedData;
 		} catch (error) {
 			console.error('Error loading user playlists:', error);
 			if (error.status === 401) {

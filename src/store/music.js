@@ -73,13 +73,21 @@ class MusicStore {
         const actualIndex = playIndex >= 0 ? playIndex : 0;
         
         // Get all URIs starting from the selected track
-        const urisToPlay = allTracks.slice(actualIndex).map(t => t.uri);
+        const allUris = allTracks.slice(actualIndex).map(t => t.uri);
         
-        // Play the selected track and queue the rest
+        // Spotify API has a limit of ~50 URIs per request to avoid 413 errors
+        // We'll send the first 50 URIs, and the full queue is still tracked for navigation
+        const MAX_URIS_PER_REQUEST = 50;
+        const urisToPlay = allUris.slice(0, MAX_URIS_PER_REQUEST);
+        
+        // Play the selected track and first batch of tracks
         await this.spotifyApi.play({
           device_id: this.selectedDeviceId,
           uris: urisToPlay
         });
+        
+        // Note: The full queue is still stored in the music store for navigation purposes
+        // When users skip tracks, Spotify will handle playback from its internal queue
         
         // Store the full queue
         this.queue.set(allTracks);

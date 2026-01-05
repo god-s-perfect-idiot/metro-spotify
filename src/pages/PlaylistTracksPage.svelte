@@ -5,6 +5,7 @@
 	import { accountsStore } from '../store/accounts.js';
 	import { musicStore } from '../store/music.js';
 	import { addToast } from '../store/toast.js';
+	import { cacheManager } from '../lib/cache.js';
 	
 	// Page components
 	import PlaylistTracksPage from './spotify/PlaylistTracksPage.svelte';
@@ -98,41 +99,44 @@
 
 		isLoading = true;
 		try {
-			// First, get playlist info to get the name
+			const cacheKey = cacheManager.getPlaylistTracksKey(playlistId);
+			
+			// First, get playlist info to get the name (not cached as it might change)
 			const playlistInfo = await spotifyApi.getPlaylist(playlistId);
 			playlistName = playlistInfo.name || 'Playlist';
 
-			// Then load all tracks
-			let allTracks = [];
-			let offset = 0;
-			const limit = 100;
-			let hasMore = true;
+			// Load tracks with caching
+			const cachedData = await cacheManager.getOrFetch(cacheKey, async () => {
+				let allTracks = [];
+				let offset = 0;
+				const limit = 100;
+				let hasMore = true;
 
-			while (hasMore) {
-				const response = await spotifyApi.getPlaylistTracks(playlistId, { limit, offset });
-				const fetchedTracks = response.items
-					.map((item) => item.track)
-					.filter((track) => track && track.uri); // Filter out null tracks
+				while (hasMore) {
+					const response = await spotifyApi.getPlaylistTracks(playlistId, { limit, offset });
+					const fetchedTracks = response.items
+						.map((item) => item.track)
+						.filter((track) => track && track.uri);
 
-				if (fetchedTracks.length === 0) {
-					hasMore = false;
-				} else {
-					allTracks = allTracks.concat(fetchedTracks);
-					offset += limit;
-
-					if (fetchedTracks.length < limit || !response.next) {
+					if (fetchedTracks.length === 0) {
 						hasMore = false;
+					} else {
+						allTracks = allTracks.concat(fetchedTracks);
+						offset += limit;
+
+						if (fetchedTracks.length < limit || !response.next) {
+							hasMore = false;
+						}
 					}
 				}
-			}
 
-			// Set tracks with type
-			tracks = allTracks.map(track => ({
-				...track,
-				type: 'spotify'
-			}));
+				return allTracks.map(track => ({
+					...track,
+					type: 'spotify'
+				}));
+			}, { cacheType: 'playlist_tracks' });
 
-			// Set queue to playlist tracks
+			tracks = cachedData;
 			musicStore.setQueue(tracks);
 		} catch (error) {
 			console.error('Error loading playlist tracks:', error);
