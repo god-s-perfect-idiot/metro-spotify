@@ -1,11 +1,14 @@
 <script>
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import { browser } from '../lib/browser.js';
 	import { backgroundThemeStore, textColorClassStore } from '../utils/theme.js';
+	import { currentRoute } from '../lib/router.js';
 	import Icon from '@iconify/svelte';
 
+	// Store subscriptions must be at top level
 	$: backgroundTheme = $backgroundThemeStore;
 	$: textColorClass = $textColorClassStore;
+	$: currentRouteValue = $currentRoute;
 
 	let currentTime = '';
 	let batteryLevel = null;
@@ -13,6 +16,27 @@
 	let isOnline = true;
 	let connectionType = 'unknown';
 	let timeInterval;
+	let clockAnimated = false;
+	let wifiAnimated = false;
+	let batteryAnimated = false;
+	let previousRoute = '';
+	
+	// Trigger animation only when transitioning from page without status bar to one with status bar
+	$: if (currentRouteValue) {
+		const currentRouteStr = currentRouteValue || '';
+		const hasStatusBar = currentRouteStr !== '/' && currentRouteStr !== '';
+		const previousHadStatusBar = previousRoute !== '/' && previousRoute !== '' && previousRoute !== '';
+		
+		// Only animate if: current page has status bar AND previous page didn't have status bar
+		if (hasStatusBar && !previousHadStatusBar && previousRoute !== currentRouteStr) {
+			triggerClockAnimation();
+		}
+		
+		// Update previous route
+		if (previousRoute !== currentRouteStr) {
+			previousRoute = currentRouteStr;
+		}
+	}
 
 	// Format time
 	function updateTime() {
@@ -93,6 +117,17 @@
 				conn.addEventListener('change', updateNetwork);
 			}
 		}
+
+		// Trigger all animations on initial mount
+		setTimeout(() => {
+			wifiAnimated = true;
+		}, 50);
+		setTimeout(() => {
+			batteryAnimated = true;
+		}, 200);
+		setTimeout(() => {
+			clockAnimated = true;
+		}, 350);
 	});
 
 	onDestroy(() => {
@@ -111,11 +146,35 @@
 		if (connectionType === '4g' || connectionType === 'slow-2g') return 'material-symbols:signal-cellular-2-bar';
 		return 'material-symbols:android-wifi-3-bar';
 	}
+
+	// Trigger all status bar animations with staggered delays
+	async function triggerClockAnimation() {
+		// Reset all animations
+		wifiAnimated = false;
+		batteryAnimated = false;
+		clockAnimated = false;
+		await tick();
+		
+		// Wifi drops first (0ms delay)
+		setTimeout(() => {
+			wifiAnimated = true;
+		}, 50);
+		
+		// Battery drops second (150ms delay)
+		setTimeout(() => {
+			batteryAnimated = true;
+		}, 200);
+		
+		// Clock drops last (300ms delay)
+		setTimeout(() => {
+			clockAnimated = true;
+		}, 350);
+	}
 </script>
 
 <div class="status-bar {textColorClass}">
 	<div class="status-left">
-		<div class="status-item wifi-icon" title="Network: {isOnline ? connectionType : 'Offline'}">
+		<div class="status-item wifi-icon {wifiAnimated ? 'wifi-animated' : ''}" title="Network: {isOnline ? connectionType : 'Offline'}">
 			<Icon icon='{getNetworkIcon()}' width="20" height="20" />
 		</div>
 	</div>
@@ -123,7 +182,7 @@
 	<div class="status-right">
 		<!-- Battery Status -->
 		{#if batteryLevel !== null}
-			<div class="flex flex-row items-center">
+			<div class="flex flex-row items-center battery-container {batteryAnimated ? 'battery-animated' : ''}">
 				<div
 					class="status-item battery"
 					title="Battery: {batteryLevel}%{isCharging ? ' (Charging)' : ''}"
@@ -141,15 +200,11 @@
 				<div class="w-[3.5px] h-[6px] bg-white !border-l-[1px] !border-[#000000]" />
 			</div>
 		{/if}
-		<span class="font-[200] text-sm">{currentTime}</span>
+		<span class="font-[200] text-sm clock {clockAnimated ? 'clock-animated' : ''}">{currentTime}</span>
 	</div>
 </div>
 
 <style>
-	.wifi-icon {
-		transform: rotate(-45deg);
-	}
-
 	.status-bar {
 		position: fixed;
 		top: 0.25rem;
@@ -219,5 +274,71 @@
 
 	.battery-fill.low {
 		background-color: #e32f17;
+	}
+
+	.wifi-icon {
+		opacity: 0;
+		transform: translateY(-20px) rotate(-45deg);
+		transition: none;
+	}
+
+	.wifi-animated {
+		animation: wifiBounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+	}
+
+	.battery-container {
+		opacity: 0;
+		transform: translateY(-20px);
+		transition: none;
+	}
+
+	.battery-animated {
+		animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+	}
+
+	.clock {
+		opacity: 0;
+		transform: translateY(-20px);
+		transition: none;
+	}
+
+	.clock-animated {
+		animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+	}
+
+	@keyframes wifiBounceIn {
+		0% {
+			opacity: 0;
+			transform: translateY(-20px) rotate(-45deg);
+		}
+		60% {
+			opacity: 1;
+			transform: translateY(2px) rotate(-45deg);
+		}
+		80% {
+			transform: translateY(-2px) rotate(-45deg);
+		}
+		100% {
+			opacity: 1;
+			transform: translateY(0) rotate(-45deg);
+		}
+	}
+
+	@keyframes bounceIn {
+		0% {
+			opacity: 0;
+			transform: translateY(-20px);
+		}
+		60% {
+			opacity: 1;
+			transform: translateY(2px);
+		}
+		80% {
+			transform: translateY(-2px);
+		}
+		100% {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 </style>

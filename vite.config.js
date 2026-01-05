@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
-    allowedHosts: ['808775ef673e.ngrok-free.app']
+    allowedHosts: ['ready-laws-grin.loca.lt/']
   },
   build: {
     outDir: 'dist',
