@@ -25,6 +25,17 @@
     }
 
     try {
+      // First, test the token by making an API call
+      const { default: SpotifyWebApi } = await import("spotify-web-api-js");
+      const spotifyApi = new SpotifyWebApi();
+      spotifyApi.setAccessToken(accessToken);
+      
+      // Test the token by fetching user info
+      const userInfo = await spotifyApi.getMe();
+      
+      // If API call succeeds, token is valid - proceed with storing
+      const username = userInfo.display_name || userInfo.id || "Spotify User";
+      
       // Store authentication data
       accountsStore.setAuth("spotify", {
         access_token: accessToken,
@@ -34,31 +45,30 @@
 
       // Save to storage
       accountsStore.saveToStorage("spotify");
-
-      // Fetch and save username
-      try {
-        const { default: SpotifyWebApi } = await import("spotify-web-api-js");
-        const spotifyApi = new SpotifyWebApi();
-        spotifyApi.setAccessToken(accessToken);
-        const userInfo = await spotifyApi.getMe();
-        const username = userInfo.display_name || userInfo.id || "Spotify User";
-        localStorage.setItem("spotify_username", username);
-      } catch (error) {
-        console.error("Error fetching username:", error);
-        // Continue even if username fetch fails
-      }
+      
+      // Save username
+      localStorage.setItem("spotify_username", username);
 
       addToast("Spotify account connected successfully");
 
-      // Redirect to home
+      // Redirect to home with full page reload to ensure auth state is refreshed
       setTimeout(() => {
-        router.navigate("/");
+        window.location.href = "/";
       }, 500);
     } catch (error) {
-      console.error("Error setting auth token:", error);
-      addToast(
-        "Failed to connect with token. Please check your token and try again."
-      );
+      console.error("Error validating or setting auth token:", error);
+      
+      // Determine error message based on the error
+      let errorMessage = "Failed to connect with token. Please check your token and try again.";
+      if (error.status === 401) {
+        errorMessage = "Invalid access token. The token may be expired or incorrect.";
+      } else if (error.status === 403) {
+        errorMessage = "Token does not have required permissions.";
+      } else if (error.message) {
+        errorMessage = `Token validation failed: ${error.message}`;
+      }
+      
+      addToast(errorMessage);
     }
   }
 </script>
