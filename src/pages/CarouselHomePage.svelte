@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { musicStore, currentTrack, isPlaying, playbackProgress } from '../store/music.js';
+  import { musicStore, currentTrack, isPlaying, playbackProgress, shuffle, repeat, queue, currentIndex } from '../store/music.js';
   import { accountsStore } from '../store/accounts.js';
   import { router } from '../lib/router.js';
   import HomePage from './HomePage.svelte';
@@ -63,6 +63,13 @@
   $: currentTime = progress.currentTime;
   $: duration = progress.duration;
   $: seekValue = progress.seekValue;
+  
+  // Get next track from queue
+  $: playQueue = $queue;
+  $: currentQueueIndex = $currentIndex;
+  $: nextTrack = playQueue.length > 0 && currentQueueIndex >= 0 && currentQueueIndex < playQueue.length - 1
+    ? playQueue[currentQueueIndex + 1]
+    : null;
   
   // Peek amount (percentage of screen width)
   const PEEK_AMOUNT = 0.15; // 15% of screen width
@@ -279,6 +286,14 @@
     await musicStore.togglePlayPause();
   }
   
+  async function toggleShuffle() {
+    await musicStore.toggleShuffle();
+  }
+  
+  async function cycleRepeat() {
+    await musicStore.cycleRepeat();
+  }
+  
   // Handle navigation from HomePage - trigger exit animation first
   function handleBeforeNavigate(navigateCallback) {
     // Set local exiting state to trigger the carousel exit animation
@@ -340,9 +355,14 @@
           {duration}
           {seekValue}
           {isPlayingState}
+          shuffleState={$shuffle}
+          repeatState={$repeat}
+          {nextTrack}
           onPlayPrevious={playPrevious}
           onPlayNext={playNext}
           onTogglePlayPause={togglePlayPause}
+          onToggleShuffle={toggleShuffle}
+          onCycleRepeat={cycleRepeat}
         />
       </div>
     </div>

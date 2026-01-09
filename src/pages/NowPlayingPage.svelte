@@ -8,6 +8,10 @@
     isPlaying,
     playbackProgress,
     isBuffering,
+    shuffle,
+    repeat,
+    queue,
+    currentIndex,
   } from "../store/music.js";
   import NowPlayingPageComponent from "./spotify/NowPlayingPage.svelte";
 
@@ -17,12 +21,25 @@
   let isPlayingState = false;
   let progress = { currentTime: 0, duration: 0, seekValue: 0 };
   let bufferingState = false;
+  let shuffleState = false;
+  let repeatState = 'off';
+  let playQueue = [];
+  let currentQueueIndex = -1;
 
   // Subscribe to music store
   $: currentTrackData = $currentTrack;
   $: isPlayingState = $isPlaying;
   $: progress = $playbackProgress;
   $: bufferingState = $isBuffering;
+  $: shuffleState = $shuffle;
+  $: repeatState = $repeat;
+  $: playQueue = $queue;
+  $: currentQueueIndex = $currentIndex;
+  
+  // Get next track
+  $: nextTrack = playQueue.length > 0 && currentQueueIndex >= 0 && currentQueueIndex < playQueue.length - 1
+    ? playQueue[currentQueueIndex + 1]
+    : null;
 
   // Derived values for display
   $: nowPlayingTrack =
@@ -45,6 +62,14 @@
     await musicStore.togglePlayPause();
   }
 
+  async function toggleShuffle() {
+    await musicStore.toggleShuffle();
+  }
+
+  async function cycleRepeat() {
+    await musicStore.cycleRepeat();
+  }
+
   // Note: Authentication check is handled by App.svelte, so this component only renders when authenticated
 </script>
 
@@ -58,9 +83,14 @@
       {seekValue}
       {isPlayingState}
       isBuffering={bufferingState}
+      {shuffleState}
+      {repeatState}
       onPlayPrevious={playPrevious}
       onPlayNext={playNext}
       onTogglePlayPause={togglePlayPause}
+      onToggleShuffle={toggleShuffle}
+      onCycleRepeat={cycleRepeat}
+      nextTrack={nextTrack}
     />
   {:else}
     <!-- Show empty state if no track is playing -->

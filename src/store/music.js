@@ -16,6 +16,31 @@ class MusicStore {
     this.isBuffering = writable(false); // Flag to track when track is loading/buffering
     this.isTogglingPlayPause = false; // Flag to prevent polling from overriding play/pause state during toggle
     this.playPauseToggleTimeout = null; // Timeout to clear the toggle flag
+    this.isTogglingShuffle = false; // Flag to prevent polling from overriding shuffle state during toggle
+    this.isCyclingRepeat = false; // Flag to prevent polling from overriding repeat state during cycle
+    this.hasRestoredPreferences = false; // Flag to track if we've restored preferences from localStorage
+    this.justAppliedPreferences = false; // Flag to prevent polling from overriding preferences right after applying them
+    this.preferencesApplyTimeout = null; // Timeout to clear the justAppliedPreferences flag
+    
+    // Load shuffle and repeat preferences from localStorage
+    const savedShuffle = typeof window !== 'undefined' ? localStorage.getItem('metro_spotify_shuffle') : null;
+    const savedRepeat = typeof window !== 'undefined' ? localStorage.getItem('metro_spotify_repeat') : null;
+    
+    this.shuffle = writable(savedShuffle === 'true' ? true : false); // Shuffle state: on or off
+    this.repeat = writable(savedRepeat && ['off', 'all', 'one'].includes(savedRepeat) ? savedRepeat : 'off'); // Repeat state: 'off', 'all', 'one'
+    
+    // Subscribe to changes and save to localStorage
+    this.shuffle.subscribe(value => {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('metro_spotify_shuffle', value.toString());
+      }
+    });
+    
+    this.repeat.subscribe(value => {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('metro_spotify_repeat', value);
+      }
+    });
     this.rateLimitBackoff = 0; // Backoff time in ms when rate limited
     this.consecutiveErrors = 0; // Track consecutive errors for backoff
     
@@ -228,6 +253,26 @@ class MusicStore {
         const playIndex = index >= 0 ? index : allTracks.findIndex(t => t.uri === track.uri);
         const actualIndex = playIndex >= 0 ? playIndex : 0;
         
+        // Apply saved shuffle preference BEFORE playing (so queue is shuffled correctly)
+        const savedShuffle = typeof window !== 'undefined' ? localStorage.getItem('metro_spotify_shuffle') === 'true' : false;
+        if (savedShuffle !== this.getCurrentState().shuffle) {
+          try {
+            console.log('🔄 Applying saved shuffle preference before playing:', savedShuffle);
+            await this.spotifyApi.setShuffle(savedShuffle, { device_id: this.selectedDeviceId });
+            this.shuffle.set(savedShuffle);
+            // Set flag to prevent polling from overriding this for a few seconds
+            this.justAppliedPreferences = true;
+            if (this.preferencesApplyTimeout) {
+              clearTimeout(this.preferencesApplyTimeout);
+            }
+            this.preferencesApplyTimeout = setTimeout(() => {
+              this.justAppliedPreferences = false;
+            }, 3000);
+          } catch (error) {
+            console.error('Error applying shuffle preference:', error);
+          }
+        }
+        
         // Get all URIs starting from the selected track
         const allUris = allTracks.slice(actualIndex).map(t => t.uri);
         
@@ -249,6 +294,26 @@ class MusicStore {
         this.queue.set(allTracks);
         this.currentIndex.set(actualIndex);
       } else {
+        // Apply saved shuffle preference BEFORE playing
+        const savedShuffle = typeof window !== 'undefined' ? localStorage.getItem('metro_spotify_shuffle') === 'true' : false;
+        if (savedShuffle !== this.getCurrentState().shuffle) {
+          try {
+            console.log('🔄 Applying saved shuffle preference before playing:', savedShuffle);
+            await this.spotifyApi.setShuffle(savedShuffle, { device_id: this.selectedDeviceId });
+            this.shuffle.set(savedShuffle);
+            // Set flag to prevent polling from overriding this for a few seconds
+            this.justAppliedPreferences = true;
+            if (this.preferencesApplyTimeout) {
+              clearTimeout(this.preferencesApplyTimeout);
+            }
+            this.preferencesApplyTimeout = setTimeout(() => {
+              this.justAppliedPreferences = false;
+            }, 3000);
+          } catch (error) {
+            console.error('Error applying shuffle preference:', error);
+          }
+        }
+        
         // If no list provided, just play the single track
         await this.spotifyApi.play({
           device_id: this.selectedDeviceId,
@@ -264,6 +329,45 @@ class MusicStore {
       this.currentTrack.set(track);
       this.serviceType.set(track.type || 'spotify');
       this.isPlaying.set(true);
+      
+      // Apply saved shuffle and repeat preferences
+      // Do this after playback starts to ensure device is ready
+      setTimeout(async () => {
+        try {
+          // Ensure device is still set
+          if (!this.selectedDeviceId) {
+            await this.ensureMetroSpotifyDevice();
+          }
+          
+          if (!this.selectedDeviceId) {
+            console.warn('Cannot apply shuffle/repeat preferences: No device available');
+            return;
+          }
+          
+          const savedRepeat = typeof window !== 'undefined' ? localStorage.getItem('metro_spotify_repeat') : 'off';
+          
+          // Apply repeat preference
+          if (savedRepeat && ['off', 'all', 'one'].includes(savedRepeat)) {
+            const currentRepeat = this.getCurrentState().repeat;
+            if (savedRepeat !== currentRepeat) {
+              console.log('🔄 Applying saved repeat preference:', savedRepeat);
+              const spotifyRepeatState = savedRepeat === 'one' ? 'track' : savedRepeat === 'all' ? 'context' : 'off';
+              await this.spotifyApi.setRepeat(spotifyRepeatState, { device_id: this.selectedDeviceId });
+              this.repeat.set(savedRepeat);
+              // Set flag to prevent polling from overriding this for a few seconds
+              this.justAppliedPreferences = true;
+              if (this.preferencesApplyTimeout) {
+                clearTimeout(this.preferencesApplyTimeout);
+              }
+              this.preferencesApplyTimeout = setTimeout(() => {
+                this.justAppliedPreferences = false;
+              }, 3000);
+            }
+          }
+        } catch (error) {
+          console.error('Error applying saved shuffle/repeat preferences:', error);
+        }
+      }, 500);
       
       // Start media service
       const trackName = track.name || '';
@@ -511,6 +615,80 @@ class MusicStore {
         };
         this.playbackProgress.set(progress);
         
+        // Update shuffle and repeat state from API
+        // Only update if we're not currently toggling (to prevent flicker) and haven't just applied preferences
+        if (typeof state.shuffle_state !== 'undefined' && !this.isTogglingShuffle && !this.justAppliedPreferences) {
+          // Restore saved shuffle preference on first detection if it differs from API
+          if (!this.hasRestoredPreferences) {
+            const savedShuffle = typeof window !== 'undefined' ? localStorage.getItem('metro_spotify_shuffle') === 'true' : false;
+            if (savedShuffle !== state.shuffle_state) {
+              // Restore saved shuffle preference
+              setTimeout(async () => {
+                try {
+                  if (!this.selectedDeviceId) {
+                    await this.ensureMetroSpotifyDevice();
+                  }
+                  if (this.selectedDeviceId) {
+                    console.log('🔄 Restoring saved shuffle preference:', savedShuffle);
+                    await this.spotifyApi.setShuffle(savedShuffle, { device_id: this.selectedDeviceId });
+                    this.shuffle.set(savedShuffle);
+                    this.hasRestoredPreferences = true;
+                  }
+                } catch (error) {
+                  console.error('Error restoring shuffle preference:', error);
+                  // Fall back to API state if restore fails
+                  this.shuffle.set(state.shuffle_state);
+                  this.hasRestoredPreferences = true;
+                }
+              }, 500);
+            } else {
+              // API state matches saved preference, just update
+              this.shuffle.set(state.shuffle_state);
+              this.hasRestoredPreferences = true;
+            }
+          } else {
+            // Already restored, just sync with API
+            this.shuffle.set(state.shuffle_state);
+          }
+        }
+        if (typeof state.repeat_state !== 'undefined' && !this.isCyclingRepeat && !this.justAppliedPreferences) {
+          // Convert Spotify's repeat state to our format
+          // 'off' -> 'off', 'context' -> 'all', 'track' -> 'one'
+          const repeatState = state.repeat_state === 'track' ? 'one' : 
+                             state.repeat_state === 'context' ? 'all' : 'off';
+          
+          // Restore saved repeat preference on first detection if it differs from API
+          if (!this.hasRestoredPreferences) {
+            const savedRepeat = typeof window !== 'undefined' ? localStorage.getItem('metro_spotify_repeat') : 'off';
+            if (savedRepeat && ['off', 'all', 'one'].includes(savedRepeat) && savedRepeat !== repeatState) {
+              // Restore saved repeat preference
+              setTimeout(async () => {
+                try {
+                  if (!this.selectedDeviceId) {
+                    await this.ensureMetroSpotifyDevice();
+                  }
+                  if (this.selectedDeviceId) {
+                    console.log('🔄 Restoring saved repeat preference:', savedRepeat);
+                    const spotifyRepeatState = savedRepeat === 'one' ? 'track' : savedRepeat === 'all' ? 'context' : 'off';
+                    await this.spotifyApi.setRepeat(spotifyRepeatState, { device_id: this.selectedDeviceId });
+                    this.repeat.set(savedRepeat);
+                  }
+                } catch (error) {
+                  console.error('Error restoring repeat preference:', error);
+                  // Fall back to API state if restore fails
+                  this.repeat.set(repeatState);
+                }
+              }, 500);
+            } else {
+              // API state matches saved preference, just update
+              this.repeat.set(repeatState);
+            }
+          } else {
+            // Already restored, just sync with API
+            this.repeat.set(repeatState);
+          }
+        }
+        
         // Clear buffering state when we detect playback has started (progress > 0 or is_playing)
         if (this.getCurrentState().isBuffering && (state.progress_ms > 0 || state.is_playing)) {
           this.isBuffering.set(false);
@@ -607,6 +785,12 @@ class MusicStore {
     this.serviceType.set(null);
     this.currentIndex.set(-1);
     this.queue.set([]);
+    this.hasRestoredPreferences = false; // Reset flag when clearing
+    this.justAppliedPreferences = false; // Reset flag when clearing
+    if (this.preferencesApplyTimeout) {
+      clearTimeout(this.preferencesApplyTimeout);
+      this.preferencesApplyTimeout = null;
+    }
     
     // Stop media service
     mediaServiceBridge.stopService();
@@ -620,7 +804,9 @@ class MusicStore {
       currentIndex: -1,
       serviceType: null,
       isBuffering: false,
-      playbackProgress: { currentTime: 0, duration: 0, seekValue: 0 }
+      playbackProgress: { currentTime: 0, duration: 0, seekValue: 0 },
+      shuffle: false,
+      repeat: 'off'
     };
     
     this.currentTrack.subscribe(value => state.currentTrack = value)();
@@ -630,8 +816,113 @@ class MusicStore {
     this.serviceType.subscribe(value => state.serviceType = value)();
     this.isBuffering.subscribe(value => state.isBuffering = value)();
     this.playbackProgress.subscribe(value => state.playbackProgress = value)();
+    this.shuffle.subscribe(value => state.shuffle = value)();
+    this.repeat.subscribe(value => state.repeat = value)();
     
     return state;
+  }
+
+  async toggleShuffle() {
+    if (!this.spotifyApi) {
+      console.error('Cannot toggle shuffle: API not initialized');
+      return;
+    }
+    
+    // Set flag to prevent polling from overriding state during toggle
+    this.isTogglingShuffle = true;
+    
+    try {
+      // Ensure device is set
+      await this.ensureMetroSpotifyDevice();
+      
+      if (!this.selectedDeviceId) {
+        console.error('Cannot toggle shuffle: No device selected');
+        this.isTogglingShuffle = false;
+        return;
+      }
+      
+      const currentShuffle = this.getCurrentState().shuffle;
+      const newShuffleState = !currentShuffle;
+      
+      console.log('🔄 Toggling shuffle:', { from: currentShuffle, to: newShuffleState, deviceId: this.selectedDeviceId });
+      
+      // Optimistically update UI immediately
+      this.shuffle.set(newShuffleState);
+      
+      // Spotify API: setShuffle(state, options) where options can include device_id
+      await this.spotifyApi.setShuffle(newShuffleState, { device_id: this.selectedDeviceId });
+      
+      console.log('✅ Shuffle toggled successfully');
+      
+      // Clear flag after a delay to allow API to catch up
+      setTimeout(() => {
+        this.isTogglingShuffle = false;
+      }, 2000);
+    } catch (error) {
+      console.error('Error toggling shuffle:', error);
+      // Revert on error
+      const currentShuffle = this.getCurrentState().shuffle;
+      this.shuffle.set(currentShuffle);
+      this.isTogglingShuffle = false;
+    }
+  }
+
+  async cycleRepeat() {
+    if (!this.spotifyApi) {
+      console.error('Cannot cycle repeat: API not initialized');
+      return;
+    }
+    
+    // Set flag to prevent polling from overriding state during cycle
+    this.isCyclingRepeat = true;
+    
+    try {
+      // Ensure device is set
+      await this.ensureMetroSpotifyDevice();
+      
+      if (!this.selectedDeviceId) {
+        console.error('Cannot cycle repeat: No device selected');
+        this.isCyclingRepeat = false;
+        return;
+      }
+      
+      const currentRepeat = this.getCurrentState().repeat;
+      // Cycle: off -> all -> one -> off
+      let nextRepeat;
+      let spotifyRepeatState;
+      
+      if (currentRepeat === 'off') {
+        nextRepeat = 'all';
+        spotifyRepeatState = 'context';
+      } else if (currentRepeat === 'all') {
+        nextRepeat = 'one';
+        spotifyRepeatState = 'track';
+      } else {
+        nextRepeat = 'off';
+        spotifyRepeatState = 'off';
+      }
+      
+      console.log('🔄 Cycling repeat:', { from: currentRepeat, to: nextRepeat, spotifyState: spotifyRepeatState, deviceId: this.selectedDeviceId });
+      
+      // Optimistically update UI immediately
+      this.repeat.set(nextRepeat);
+      
+      // Spotify API: setRepeat(state, options) where state is 'off', 'track', or 'context'
+      await this.spotifyApi.setRepeat(spotifyRepeatState, { device_id: this.selectedDeviceId });
+      
+      console.log('✅ Repeat cycled successfully');
+      
+      // Clear flag after a delay to allow API to catch up
+      setTimeout(() => {
+        this.isCyclingRepeat = false;
+      }, 2000);
+    } catch (error) {
+      console.error('Error cycling repeat:', error);
+      // Revert on error
+      const currentRepeat = this.getCurrentState().repeat;
+      this.repeat.set(currentRepeat);
+      this.isCyclingRepeat = false;
+    }
   }
 }
 
@@ -642,3 +933,5 @@ export const playbackProgress = musicStore.playbackProgress;
 export const queue = musicStore.queue;
 export const currentIndex = musicStore.currentIndex;
 export const isBuffering = musicStore.isBuffering;
+export const shuffle = musicStore.shuffle;
+export const repeat = musicStore.repeat;
