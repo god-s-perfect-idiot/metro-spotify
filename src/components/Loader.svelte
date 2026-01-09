@@ -1,10 +1,12 @@
 <script>
 	import { accentColorStore } from '../utils/theme.js';
 	
+	export let hideText = false;
+	
 	$: accentColor = $accentColorStore;
 </script>
 
-<div class="flex items-center justify-center py-12">
+<div class="flex items-center justify-center" class:py-12={!hideText}>
 	<div class="flex flex-col items-center gap-4">
 		<!-- Windows Phone 8 Style Loading Dots -->
 		<div class="ellipsis-loader" role="alert" aria-label="Loading. Please wait">
@@ -15,7 +17,9 @@
 		</div>
 
 		<!-- Loading Text -->
-		<span class="text-lg text-gray-300 font-light">Loading...</span>
+		{#if !hideText}
+			<span class="text-lg text-gray-300 font-light">Loading...</span>
+		{/if}
 	</div>
 </div>
 

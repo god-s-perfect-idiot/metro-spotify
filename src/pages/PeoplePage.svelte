@@ -65,8 +65,9 @@
 
 			if (metroPlayer) {
 				musicStore.setSelectedDeviceId(metroPlayer.id);
-			} else if (availableDevices.length > 0) {
-				musicStore.setSelectedDeviceId(availableDevices[0].id);
+			} else {
+				// DO NOT fall back to other devices - only use Metro Spotify
+				musicStore.setSelectedDeviceId(null);
 			}
 		} catch (error) {
 			console.error('Error loading devices:', error);

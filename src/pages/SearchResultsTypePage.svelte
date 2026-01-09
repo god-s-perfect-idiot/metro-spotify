@@ -75,8 +75,9 @@
 
       if (metroPlayer) {
         musicStore.setSelectedDeviceId(metroPlayer.id);
-      } else if (availableDevices.length > 0) {
-        musicStore.setSelectedDeviceId(availableDevices[0].id);
+      } else {
+        // DO NOT fall back to other devices - only use Metro Spotify
+        musicStore.setSelectedDeviceId(null);
       }
     } catch (error) {
       console.error("Error loading available devices:", error);
@@ -135,7 +136,9 @@
       router.goto("/now-playing");
     } catch (error) {
       console.error("Error playing track:", error);
-      if (error.status === 404) {
+      if (error.message && error.message.includes('Metro Spotify device not found')) {
+        addToast('Metro Spotify device not found. Please wait a moment and try again.');
+      } else if (error.status === 404) {
         addToast("No active Spotify device found.");
       } else if (error.status === 403) {
         addToast("Playback requires Spotify Premium.");

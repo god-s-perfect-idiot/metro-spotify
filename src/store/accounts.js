@@ -57,11 +57,27 @@ class AccountsStore {
 
     try {
       console.log('🔄 Refreshing access token...');
-      const storedClientId = localStorage.getItem('spotify_client_id') || '';
-      const storedClientSecret = localStorage.getItem('spotify_client_secret') || '';
+      // Check localStorage first, then fall back to environment variables
+      let clientId = localStorage.getItem('spotify_client_id') || '';
+      let clientSecret = localStorage.getItem('spotify_client_secret') || '';
+      
+      // Fall back to environment variable for client ID if not in localStorage
+      if (!clientId && typeof window !== 'undefined') {
+        clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID || '';
+      }
+      
+      // Fall back to environment variable for client secret if not in localStorage
+      if (!clientSecret && typeof window !== 'undefined') {
+        clientSecret = import.meta.env.VITE_SPOTIFY_CLIENT_SECRET || '';
+      }
 
-      if (!storedClientId || !storedClientSecret) {
-        console.error('Cannot refresh token: missing client credentials');
+      if (!clientId || !clientSecret) {
+        console.error('Cannot refresh token: missing client credentials', {
+          hasClientId: !!clientId,
+          hasClientSecret: !!clientSecret,
+          hasLocalClientId: !!localStorage.getItem('spotify_client_id'),
+          hasLocalClientSecret: !!localStorage.getItem('spotify_client_secret')
+        });
         return false;
       }
 
@@ -69,7 +85,7 @@ class AccountsStore {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': 'Basic ' + btoa(storedClientId + ':' + storedClientSecret)
+          'Authorization': 'Basic ' + btoa(clientId + ':' + clientSecret)
         },
         body: new URLSearchParams({
           grant_type: 'refresh_token',

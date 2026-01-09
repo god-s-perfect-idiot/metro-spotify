@@ -93,7 +93,7 @@
 				</button>
 			{/each}
 		{:else}
-			<div class="text-center py-12 mx-4">
+			<div class="text-center py-12">
 				<Icon icon="ic:sharp-queue-music" width="64" height="64" class="text-gray-500 mb-4" />
 				<h3 class="text-xl font-semibold mb-2 justify-start flex font-[300]">
 					Queue is empty

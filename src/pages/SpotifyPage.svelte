@@ -191,35 +191,50 @@
 			});
 
 			player.addListener('initialization_error', ({ message }) => {
-				console.error('Spotify Player initialization error:', message);
+				console.error('❌ Spotify Player initialization error:', message);
+				addToast('Failed to initialize Metro Spotify player: ' + message);
 			});
 
 			player.addListener('authentication_error', ({ message }) => {
-				console.error('Spotify Player authentication error:', message);
+				console.error('❌ Spotify Player authentication error:', message);
+				addToast('Authentication error: ' + message);
 			});
 
 			player.addListener('account_error', ({ message }) => {
-				console.error('Spotify Player account error:', message);
+				console.error('❌ Spotify Player account error:', message);
+				addToast('Account error: ' + message);
 			});
 
 			player.addListener('playback_error', ({ message }) => {
-				console.error('Spotify Player playback error:', message);
+				console.error('❌ Spotify Player playback error:', message);
 			});
 
 			player.addListener('ready', ({ device_id }) => {
-				console.log('Spotify Web Player ready with device ID:', device_id);
+				console.log('✅ Spotify Web Player ready with device ID:', device_id);
 				webPlayerReady = true;
 				selectedDeviceId = device_id;
 				selectedDeviceName = 'Metro Spotify';
+				// Immediately set the device ID in music store
+				musicStore.setSelectedDeviceId(device_id);
+				console.log('✅ Metro Spotify device ID set in music store:', device_id);
 				loadAvailableDevices();
 			});
 
+			player.addListener('not_ready', ({ device_id }) => {
+				console.warn('⚠️ Spotify Web Player not ready, device_id:', device_id);
+			});
+
+			console.log('🔄 Attempting to connect Metro Spotify web player...');
 			player.connect().then((success) => {
 				if (success) {
-					console.log('Spotify Web Player connected successfully');
+					console.log('✅ Spotify Web Player connected successfully');
+				} else {
+					console.error('❌ Spotify Web Player connection returned false');
+					addToast('Failed to connect Metro Spotify player. Please refresh the page.');
 				}
 			}).catch((error) => {
-				console.error('Failed to connect Spotify Web Player:', error);
+				console.error('❌ Failed to connect Spotify Web Player:', error);
+				addToast('Failed to connect Metro Spotify player: ' + (error.message || 'Unknown error'));
 			});
 
 			window.spotifyPlayer = player;
@@ -243,10 +258,14 @@
 				selectedDeviceId = metroPlayer.id;
 				selectedDeviceName = metroPlayer.name;
 				musicStore.setSelectedDeviceId(metroPlayer.id);
-			} else if (availableDevices.length > 0) {
-				selectedDeviceId = availableDevices[0].id;
-				selectedDeviceName = availableDevices[0].name;
-				musicStore.setSelectedDeviceId(availableDevices[0].id);
+				console.log('✅ Metro Spotify device selected:', metroPlayer.id);
+			} else {
+				// DO NOT fall back to other devices - only use Metro Spotify
+				console.warn('⚠️ Metro Spotify device not found. Waiting for device to be available...');
+				// Clear device selection to prevent using wrong device
+				selectedDeviceId = null;
+				selectedDeviceName = null;
+				musicStore.setSelectedDeviceId(null);
 			}
 		} catch (error) {
 			console.error('Error loading devices:', error);

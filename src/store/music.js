@@ -13,9 +13,20 @@ class MusicStore {
     this.selectedDeviceId = null;
     this.serviceType = writable(null);
     this.userNavigatedAway = false; // Flag to prevent polling from restoring track
+    this.isBuffering = writable(false); // Flag to track when track is loading/buffering
+    this.isTogglingPlayPause = false; // Flag to prevent polling from overriding play/pause state during toggle
+    this.playPauseToggleTimeout = null; // Timeout to clear the toggle flag
+    this.rateLimitBackoff = 0; // Backoff time in ms when rate limited
+    this.consecutiveErrors = 0; // Track consecutive errors for backoff
+    
+    // Simple interpolation for smooth seekbar between API updates
+    this.interpolationInterval = null;
+    this.lastApiTime = 0; // Last time from API (in seconds)
+    this.lastApiTimestamp = 0; // When we got the last API update (Date.now())
     
     this.pollingInterval = null;
     this.startPolling();
+    this.startInterpolation();
     
     // Subscribe to track and playback state changes to update media service
     this.currentTrack.subscribe(track => this._onTrackChange(track));
@@ -56,14 +67,159 @@ class MusicStore {
     this.selectedDeviceId = deviceId;
   }
 
+  async ensureMetroSpotifyDevice() {
+    if (!this.spotifyApi) {
+      throw new Error('Spotify API not initialized');
+    }
+
+    // Log current state
+    console.log('🔍 ensureMetroSpotifyDevice called');
+    console.log('📱 Current selectedDeviceId in music store:', this.selectedDeviceId);
+    console.log('🎵 window.spotifyPlayer exists:', typeof window !== 'undefined' && !!window.spotifyPlayer);
+
+    // Get all devices and log them
+    try {
+      const devices = await this.spotifyApi.getMyDevices();
+      const availableDevices = devices.devices || [];
+      console.log('📋 ALL AVAILABLE DEVICES:', JSON.stringify(availableDevices.map(d => ({
+        id: d.id,
+        name: d.name,
+        type: d.type,
+        is_active: d.is_active,
+        volume: d.volume_percent,
+        is_restricted: d.is_restricted
+      })), null, 2));
+    } catch (error) {
+      console.error('Error fetching devices for logging:', error);
+    }
+
+    // CRITICAL: If we already have a device ID set (from ready event), use it directly
+    // The device_id from the 'ready' event IS the Metro Spotify web player
+    // We MUST trust it completely - don't verify or clear it
+    if (this.selectedDeviceId) {
+      console.log('✅ Using Metro Spotify device ID from ready event:', this.selectedDeviceId);
+      
+      // Verify it exists in device list and log info
+      try {
+        const devices = await this.spotifyApi.getMyDevices();
+        const device = devices.devices?.find(d => d.id === this.selectedDeviceId);
+        if (device) {
+          console.log('✅ Device ID verified in device list:', {
+            id: device.id,
+            name: device.name,
+            type: device.type,
+            is_active: device.is_active
+          });
+        } else {
+          console.warn('⚠️ Device ID not found in device list, but using it anyway (from ready event)');
+        }
+      } catch (error) {
+        console.error('Error verifying device:', error);
+      }
+      
+      return true;
+    }
+
+    // If we don't have a device ID, try to get it from the player directly
+    // The player should have fired 'ready' event with device_id
+    if (typeof window !== 'undefined' && window.spotifyPlayer) {
+      try {
+        console.log('⏳ Waiting for player ready event...');
+        // Wait a bit for the ready event to fire if it hasn't yet
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Check if device_id was set by the ready event
+        if (this.selectedDeviceId) {
+          console.log('✅ Got device ID from player ready event:', this.selectedDeviceId);
+          return true;
+        }
+        
+        console.warn('⚠️ Player exists but device_id not set - player may not be ready yet');
+      } catch (error) {
+        console.log('Player not ready yet:', error.message);
+      }
+    } else {
+      console.warn('⚠️ window.spotifyPlayer not found - Metro Spotify web player may not be initialized');
+    }
+
+    // Need to find the Metro Spotify web player from device list
+    // The device name might not be exactly "Metro Spotify" - Spotify may use "Web Player (Chrome)" etc.
+    // So we'll look for active Computer/Web Player devices
+    const maxRetries = 5;
+    const retryDelay = 1000; // 1 second
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const devices = await this.spotifyApi.getMyDevices();
+        const availableDevices = devices.devices || [];
+        
+        // First, try to find by exact name "Metro Spotify"
+        let metroPlayer = availableDevices.find(
+          (device) => device.name === 'Metro Spotify'
+        );
+
+        // If not found by name, look for Computer/Web Player devices (even if not active)
+        // The Metro Spotify web player is a Computer type device
+        // Note: It might not be active yet, but we can still use it
+        if (!metroPlayer) {
+          // Look for Computer type devices (web players)
+          const webPlayers = availableDevices.filter(
+            (device) => device.type === 'Computer'
+          );
+          
+          if (webPlayers.length > 0) {
+            // Prefer active ones, but use any web player if none are active
+            const activeWebPlayer = webPlayers.find(d => d.is_active === true);
+            metroPlayer = activeWebPlayer || webPlayers[0];
+            console.log('⚠️ Metro Spotify not found by name, using web player:', metroPlayer.name, '(active:', metroPlayer.is_active, ')');
+          }
+        }
+
+        if (metroPlayer) {
+          this.selectedDeviceId = metroPlayer.id;
+          console.log('✅ Metro Spotify web player found and selected:', metroPlayer.id, metroPlayer.name);
+          return true;
+        }
+        
+        // If not found and not the last attempt, wait and retry
+        if (attempt < maxRetries - 1) {
+          console.log(`⏳ Metro Spotify device not found, retrying in ${retryDelay}ms... (attempt ${attempt + 1}/${maxRetries})`);
+          console.log('Available devices:', availableDevices.map(d => ({ name: d.name, type: d.type, id: d.id, is_active: d.is_active })));
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+        }
+      } catch (error) {
+        console.error('Error ensuring Metro Spotify device:', error);
+        // If it's the last attempt, throw the error
+        if (attempt === maxRetries - 1) {
+          throw new Error('Metro Spotify device not found. Please ensure the web player is connected and try again.');
+        }
+        // Otherwise, wait and retry
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
+    }
+    
+    // If we get here, all retries failed
+    throw new Error('Metro Spotify device not found after multiple attempts. Please ensure the web player is connected and try again.');
+  }
+
   setQueue(tracks) {
     this.queue.set(tracks);
   }
 
   async playTrack(track, index = -1, allTracks = []) {
-    if (!this.spotifyApi || !this.selectedDeviceId) {
-      throw new Error('Spotify API or device not initialized');
+    if (!this.spotifyApi) {
+      throw new Error('Spotify API not initialized');
     }
+
+    // ABSOLUTELY ensure we're using Metro Spotify device before playing
+    await this.ensureMetroSpotifyDevice();
+
+    if (!this.selectedDeviceId) {
+      throw new Error('Metro Spotify device not available');
+    }
+
+    // Set buffering state when starting to play
+    this.isBuffering.set(true);
 
     try {
       // If we have a list of tracks, play the selected one and queue the rest
@@ -115,32 +271,129 @@ class MusicStore {
         ? track.artists.map(a => a.name).join(', ') 
         : '';
       mediaServiceBridge.startService(trackName, artistName, true);
+      
+      // Clear buffering after a short delay to allow playback to start
+      // The polling will detect when playback actually starts and clear it
+      setTimeout(() => {
+        this.updateCurrentTrack();
+      }, 500);
     } catch (error) {
       console.error('Error playing track:', error);
+      this.isBuffering.set(false);
       throw error;
     }
   }
 
   async togglePlayPause() {
-    if (!this.spotifyApi) return;
+    if (!this.spotifyApi) {
+      console.error('Spotify API not initialized');
+      return;
+    }
+
+    // Validate device_id early
+    if (!this.selectedDeviceId) {
+      console.error('No device selected');
+      return;
+    }
+
+    // Ensure we're using Metro Spotify device (but don't block on it if it fails)
+    try {
+      await this.ensureMetroSpotifyDevice();
+    } catch (error) {
+      console.error('Error ensuring device:', error);
+      // Continue anyway - device might already be set
+    }
+
+    // Set flag to prevent polling from overriding state during toggle
+    this.isTogglingPlayPause = true;
+    
+    // Clear any existing timeout
+    if (this.playPauseToggleTimeout) {
+      clearTimeout(this.playPauseToggleTimeout);
+    }
+    
+    // Get current state first to determine what action to take
+    let currentState;
+    try {
+      currentState = await this.spotifyApi.getMyCurrentPlaybackState();
+    } catch (error) {
+      console.error('Error getting current playback state:', error);
+      this.isTogglingPlayPause = false;
+      return;
+    }
+
+    // Determine the action based on current state
+    const shouldPlay = !currentState.is_playing;
+    const newPlayingState = shouldPlay;
+
+    // Optimistically update the state immediately for responsive UI
+    this.isPlaying.set(newPlayingState);
 
     try {
-      const currentState = await this.spotifyApi.getMyCurrentPlaybackState();
-      
-      if (currentState.is_playing) {
-        await this.spotifyApi.pause({ device_id: this.selectedDeviceId });
-        this.isPlaying.set(false);
-      } else {
+      // Perform the action directly - no need to check state again
+      if (shouldPlay) {
         await this.spotifyApi.play({ device_id: this.selectedDeviceId });
-        this.isPlaying.set(true);
+      } else {
+        await this.spotifyApi.pause({ device_id: this.selectedDeviceId });
       }
-    } catch (error) {
-      console.error('Error toggling play/pause:', error);
+      
+      // Update track state after a short delay to sync with API
+      setTimeout(async () => {
+        try {
+          await this.updateCurrentTrack();
+        } catch (error) {
+          // Ignore errors in update - not critical
+        }
+      }, 200);
+      
+      // Clear the flag after a shorter delay
+      this.playPauseToggleTimeout = setTimeout(() => {
+        this.isTogglingPlayPause = false;
+        this.playPauseToggleTimeout = null;
+      }, 1500);
+    } catch (apiError) {
+      console.error('Error toggling play/pause:', apiError);
+      
+      // Handle JSON parsing errors gracefully
+      if (apiError.message && apiError.message.includes('JSON')) {
+        console.warn('⚠️ JSON parsing error (may be harmless), verifying state...');
+        // Check state after a short delay to see if action succeeded
+        setTimeout(async () => {
+          try {
+            const checkState = await this.spotifyApi.getMyCurrentPlaybackState();
+            if (checkState.is_playing === newPlayingState) {
+              console.log('✅ Play/pause succeeded despite JSON error');
+              await this.updateCurrentTrack();
+            } else {
+              // Revert if state doesn't match
+              this.isPlaying.set(!newPlayingState);
+            }
+          } catch (checkError) {
+            console.error('Error checking playback state:', checkError);
+            this.isPlaying.set(!newPlayingState);
+          }
+          this.isTogglingPlayPause = false;
+        }, 300);
+      } else {
+        // For other errors, revert immediately
+        this.isPlaying.set(!newPlayingState);
+        this.isTogglingPlayPause = false;
+        if (this.playPauseToggleTimeout) {
+          clearTimeout(this.playPauseToggleTimeout);
+          this.playPauseToggleTimeout = null;
+        }
+      }
     }
   }
 
   async playNext() {
     if (!this.spotifyApi) return;
+
+    // Ensure we're using Metro Spotify device
+    await this.ensureMetroSpotifyDevice();
+
+    // Set buffering state when skipping
+    this.isBuffering.set(true);
 
     try {
       // Get current queue state
@@ -158,14 +411,23 @@ class MusicStore {
         await this.spotifyApi.skipToNext({ device_id: this.selectedDeviceId });
       }
       
+      // Update track state - this will clear buffering when new track starts
       await this.updateCurrentTrack();
     } catch (error) {
       console.error('Error playing next:', error);
+      // Clear buffering on error
+      this.isBuffering.set(false);
     }
   }
 
   async playPrevious() {
     if (!this.spotifyApi) return;
+
+    // Ensure we're using Metro Spotify device
+    await this.ensureMetroSpotifyDevice();
+
+    // Set buffering state when skipping
+    this.isBuffering.set(true);
 
     try {
       // Get current queue state
@@ -183,9 +445,12 @@ class MusicStore {
         await this.spotifyApi.skipToPrevious({ device_id: this.selectedDeviceId });
       }
       
+      // Update track state - this will clear buffering when new track starts
       await this.updateCurrentTrack();
     } catch (error) {
       console.error('Error playing previous:', error);
+      // Clear buffering on error
+      this.isBuffering.set(false);
     }
   }
 
@@ -195,16 +460,32 @@ class MusicStore {
     // Don't update if user explicitly navigated away
     if (this.userNavigatedAway) return;
 
+    // Skip if we're in rate limit backoff
+    if (this.rateLimitBackoff > 0) {
+      return;
+    }
+
     try {
       const state = await this.spotifyApi.getMyCurrentPlaybackState();
+      
+      // Reset error counter on success
+      this.consecutiveErrors = 0;
+      this.rateLimitBackoff = 0;
+      
       if (state.item) {
         const track = {
           ...state.item,
           type: 'spotify'
         };
+        
         this.currentTrack.set(track);
         this.serviceType.set('spotify');
-        this.isPlaying.set(state.is_playing);
+        
+        // Don't override play/pause state if we're in the middle of a toggle action
+        // This prevents race conditions where polling overrides optimistic state updates
+        if (!this.isTogglingPlayPause) {
+          this.isPlaying.set(state.is_playing);
+        }
         
         // Update current index if we have a queue
         const queue = this.getCurrentState().queue;
@@ -215,32 +496,107 @@ class MusicStore {
           }
         }
         
+        // Update progress directly from API
+        const currentTime = state.progress_ms / 1000;
+        const duration = state.item.duration_ms / 1000;
+        
+        // Store for interpolation
+        this.lastApiTime = currentTime;
+        this.lastApiTimestamp = Date.now();
+        
         const progress = {
-          currentTime: state.progress_ms / 1000,
-          duration: state.item.duration_ms / 1000,
-          seekValue: state.progress_ms / state.item.duration_ms * 100
+          currentTime: currentTime,
+          duration: duration,
+          seekValue: (currentTime / duration) * 100
         };
         this.playbackProgress.set(progress);
+        
+        // Clear buffering state when we detect playback has started (progress > 0 or is_playing)
+        if (this.getCurrentState().isBuffering && (state.progress_ms > 0 || state.is_playing)) {
+          this.isBuffering.set(false);
+        }
       }
     } catch (error) {
-      console.error('Error updating current track:', error);
+      // Handle rate limiting (429 errors)
+      if (error.status === 429) {
+        this.consecutiveErrors++;
+        // Exponential backoff: 5s, 10s, 20s, 30s (max)
+        const backoffTime = Math.min(30000, 5000 * Math.pow(2, this.consecutiveErrors - 1));
+        this.rateLimitBackoff = backoffTime;
+        console.warn(`⚠️ Rate limited (429). Backing off for ${backoffTime / 1000}s. Consecutive errors: ${this.consecutiveErrors}`);
+        
+        // Clear backoff after the delay
+        setTimeout(() => {
+          this.rateLimitBackoff = 0;
+          console.log('✅ Rate limit backoff cleared, resuming polling');
+        }, backoffTime);
+      } else {
+        // For other errors, just log but don't backoff as aggressively
+        console.error('Error updating current track:', error);
+        this.consecutiveErrors++;
+        
+        // If we have many consecutive errors, add a small backoff
+        if (this.consecutiveErrors > 5) {
+          this.rateLimitBackoff = 2000; // 2 second backoff
+          setTimeout(() => {
+            this.rateLimitBackoff = 0;
+            this.consecutiveErrors = 0;
+          }, 2000);
+        }
+      }
     }
   }
 
   startPolling() {
     if (this.pollingInterval) return;
     
+    // Poll every 1 second for smooth seekbar updates
+    const pollingInterval = 1000; // 1 second
+    
     this.pollingInterval = setInterval(() => {
-      if (this.spotifyApi) {
+      if (this.spotifyApi && this.rateLimitBackoff === 0) {
         this.updateCurrentTrack();
       }
-    }, 1000);
+    }, pollingInterval);
   }
 
   stopPolling() {
     if (this.pollingInterval) {
       clearInterval(this.pollingInterval);
       this.pollingInterval = null;
+    }
+  }
+
+  startInterpolation() {
+    if (this.interpolationInterval) return;
+    
+    // Smooth interpolation between API updates (every 100ms)
+    this.interpolationInterval = setInterval(() => {
+      const currentState = this.getCurrentState();
+      
+      // Only interpolate if playing and not buffering
+      if (currentState.isPlaying && !currentState.isBuffering && this.lastApiTimestamp > 0) {
+        const now = Date.now();
+        const elapsed = (now - this.lastApiTimestamp) / 1000; // elapsed seconds since last API update
+        const interpolatedTime = this.lastApiTime + elapsed;
+        const duration = currentState.playbackProgress.duration;
+        
+        if (duration > 0) {
+          const progress = {
+            currentTime: Math.min(interpolatedTime, duration),
+            duration: duration,
+            seekValue: (Math.min(interpolatedTime, duration) / duration) * 100
+          };
+          this.playbackProgress.set(progress);
+        }
+      }
+    }, 100); // Update every 100ms for smooth animation
+  }
+
+  stopInterpolation() {
+    if (this.interpolationInterval) {
+      clearInterval(this.interpolationInterval);
+      this.interpolationInterval = null;
     }
   }
 
@@ -262,7 +618,9 @@ class MusicStore {
       isPlaying: false,
       queue: [],
       currentIndex: -1,
-      serviceType: null
+      serviceType: null,
+      isBuffering: false,
+      playbackProgress: { currentTime: 0, duration: 0, seekValue: 0 }
     };
     
     this.currentTrack.subscribe(value => state.currentTrack = value)();
@@ -270,6 +628,8 @@ class MusicStore {
     this.queue.subscribe(value => state.queue = value)();
     this.currentIndex.subscribe(value => state.currentIndex = value)();
     this.serviceType.subscribe(value => state.serviceType = value)();
+    this.isBuffering.subscribe(value => state.isBuffering = value)();
+    this.playbackProgress.subscribe(value => state.playbackProgress = value)();
     
     return state;
   }
@@ -281,3 +641,4 @@ export const isPlaying = musicStore.isPlaying;
 export const playbackProgress = musicStore.playbackProgress;
 export const queue = musicStore.queue;
 export const currentIndex = musicStore.currentIndex;
+export const isBuffering = musicStore.isBuffering;

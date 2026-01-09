@@ -28,6 +28,7 @@
   import { accountsStore } from "./store/accounts.js";
   import { musicStore, currentTrack } from "./store/music.js";
   import Loader from "./components/Loader.svelte";
+  import { browser } from "./lib/browser.js";
 
   let route = "/";
   let spotifyPageRef = null;
@@ -216,7 +217,128 @@
         router.goto(path || "/");
       }
     }
+
+    // Initialize Metro Spotify web player globally if authenticated
+    if (browser) {
+      initializeMetroSpotifyPlayer();
+    }
   });
+
+  async function initializeMetroSpotifyPlayer() {
+    if (!browser) return;
+    
+    // Check if player already exists
+    if (window.spotifyPlayer) {
+      console.log('✅ Metro Spotify player already initialized');
+      return;
+    }
+
+    // Check if user is authenticated
+    const hasToken = await accountsStore.hasValidToken('spotify');
+    if (!hasToken) {
+      console.log('⏭️ No Spotify token, skipping player initialization');
+      return;
+    }
+
+    try {
+      const token = await accountsStore.getAccessToken('spotify');
+      console.log('🔄 Initializing Metro Spotify web player globally...');
+      
+      // Load Spotify Web Playback SDK script if not already loaded
+      if (!window.Spotify) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://sdk.scdn.co/spotify-player.js';
+          script.async = true;
+          script.onload = () => {
+            console.log('✅ Spotify Web Playback SDK loaded');
+            resolve();
+          };
+          script.onerror = () => {
+            console.error('❌ Failed to load Spotify Web Playback SDK');
+            reject(new Error('Failed to load SDK'));
+          };
+          document.head.appendChild(script);
+        });
+      }
+
+      // Setup the player
+      if (window.Spotify) {
+        setupMetroSpotifyPlayer(token);
+      }
+    } catch (error) {
+      console.error('Error initializing Metro Spotify player:', error);
+    }
+  }
+
+  function setupMetroSpotifyPlayer(initialToken) {
+    if (!window.Spotify || !browser) return;
+
+    try {
+      // Don't create if already exists
+      if (window.spotifyPlayer) {
+        console.log('✅ Metro Spotify player already exists');
+        return;
+      }
+
+      const player = new window.Spotify.Player({
+        name: 'Metro Spotify',
+        getOAuthToken: async (cb) => {
+          const hasToken = await accountsStore.hasValidToken('spotify');
+          if (hasToken) {
+            const currentToken = await accountsStore.getAccessToken('spotify');
+            cb(currentToken);
+          } else {
+            cb(initialToken);
+          }
+        },
+        volume: 0.5
+      });
+
+      player.addListener('initialization_error', ({ message }) => {
+        console.error('❌ Metro Spotify Player initialization error:', message);
+      });
+
+      player.addListener('authentication_error', ({ message }) => {
+        console.error('❌ Metro Spotify Player authentication error:', message);
+      });
+
+      player.addListener('account_error', ({ message }) => {
+        console.error('❌ Metro Spotify Player account error:', message);
+      });
+
+      player.addListener('playback_error', ({ message }) => {
+        console.error('❌ Metro Spotify Player playback error:', message);
+      });
+
+      player.addListener('ready', ({ device_id }) => {
+        console.log('✅ Metro Spotify Web Player ready with device ID:', device_id);
+        // Immediately set the device ID in music store
+        musicStore.setSelectedDeviceId(device_id);
+        console.log('✅ Metro Spotify device ID set in music store:', device_id);
+      });
+
+      player.addListener('not_ready', ({ device_id }) => {
+        console.warn('⚠️ Metro Spotify Web Player not ready, device_id:', device_id);
+      });
+
+      console.log('🔄 Attempting to connect Metro Spotify web player...');
+      player.connect().then((success) => {
+        if (success) {
+          console.log('✅ Metro Spotify Web Player connected successfully');
+        } else {
+          console.error('❌ Metro Spotify Web Player connection returned false');
+        }
+      }).catch((error) => {
+        console.error('❌ Failed to connect Metro Spotify Web Player:', error);
+      });
+
+      window.spotifyPlayer = player;
+      console.log('✅ Metro Spotify player created and stored in window.spotifyPlayer');
+    } catch (error) {
+      console.error('Error setting up Metro Spotify Web Player:', error);
+    }
+  }
 </script>
 
 <main class="w-full h-full relative">

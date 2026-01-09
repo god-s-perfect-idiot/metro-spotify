@@ -7,6 +7,7 @@
     currentTrack,
     isPlaying,
     playbackProgress,
+    isBuffering,
   } from "../store/music.js";
   import NowPlayingPageComponent from "./spotify/NowPlayingPage.svelte";
 
@@ -15,11 +16,13 @@
   let currentTrackData = null;
   let isPlayingState = false;
   let progress = { currentTime: 0, duration: 0, seekValue: 0 };
+  let bufferingState = false;
 
   // Subscribe to music store
   $: currentTrackData = $currentTrack;
   $: isPlayingState = $isPlaying;
   $: progress = $playbackProgress;
+  $: bufferingState = $isBuffering;
 
   // Derived values for display
   $: nowPlayingTrack =
@@ -54,6 +57,7 @@
       {duration}
       {seekValue}
       {isPlayingState}
+      isBuffering={bufferingState}
       onPlayPrevious={playPrevious}
       onPlayNext={playNext}
       onTogglePlayPause={togglePlayPause}

@@ -1,12 +1,15 @@
 <script>
   import Icon from "@iconify/svelte";
 
+  import Loader from "../../components/Loader.svelte";
+
   export let isExiting = false;
   export let nowPlayingTrack = null;
   export let currentTime = 0;
   export let duration = 0;
   export let seekValue = 0;
   export let isPlayingState = false;
+  export let isBuffering = false;
   export let onPlayPrevious = () => {};
   export let onPlayNext = () => {};
   export let onTogglePlayPause = () => {};
@@ -59,7 +62,7 @@
       {/if}
     </div>
 
-    <!-- Seek Bar -->
+    <!-- Seek Bar / Loader -->
     <div class="flex flex-col gap-2 w-72 max-w-md">
       <div class="relative w-full h-2 bg-gray-200">
         <div
@@ -67,10 +70,16 @@
           style="width: {seekValue}%"
         ></div>
       </div>
-      <div class="flex justify-between text-sm text-gray-500">
-        <span>{formatTime(currentTime)}</span>
-        <span>{formatTime(duration)}</span>
-      </div>
+      {#if isBuffering}
+        <div class="flex items-center justify-center py-2">
+          <Loader hideText={true} />
+        </div>
+      {:else}
+        <div class="flex justify-between text-sm text-gray-500">
+          <span>{formatTime(currentTime)}</span>
+          <span>{formatTime(duration)}</span>
+        </div>
+      {/if}
     </div>
 
     <!-- Song Info -->
@@ -108,10 +117,20 @@
         }}
         on:touchstart={() => handleControlTap("playpause")}
       >
+        <!-- Always render both icons to preload them, but only show the active one -->
         <Icon
-          icon={isPlayingState ? "mdi:pause" : "mdi:play"}
+          icon="mdi:play"
           width="32"
           height="32"
+          class={isPlayingState === true ? "hidden" : ""}
+          style={isPlayingState === true ? "position: absolute; visibility: hidden;" : ""}
+        />
+        <Icon
+          icon="mdi:pause"
+          width="32"
+          height="32"
+          class={isPlayingState === false ? "hidden" : ""}
+          style={isPlayingState === false ? "position: absolute; visibility: hidden;" : ""}
         />
       </button>
       <button
@@ -138,3 +157,4 @@
     transform: translate(2px, 2px);
   }
 </style>
+

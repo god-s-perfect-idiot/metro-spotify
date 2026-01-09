@@ -112,10 +112,20 @@
           }}
           on:touchstart={() => handleControlTap('playpause')}
         >
+          <!-- Always render both icons to preload them, but only show the active one -->
           <Icon
-            icon={isPlayingState ? "mdi:pause" : "mdi:play"}
+            icon="mdi:play"
             width="28"
             height="28"
+            class={isPlayingState ? "hidden" : ""}
+            style={isPlayingState ? "position: absolute; visibility: hidden;" : ""}
+          />
+          <Icon
+            icon="mdi:pause"
+            width="28"
+            height="28"
+            class={isPlayingState === false ? "hidden" : ""}
+            style={isPlayingState === false ? "position: absolute; visibility: hidden;" : ""}
           />
         </button>
         <button
