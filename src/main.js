@@ -3,6 +3,7 @@ import App from './App.svelte';
 import { App as CapacitorApp } from '@capacitor/app';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { cacheManager } from './lib/cache.js';
+import { musicStore } from './store/music.js';
 
 // Initialize Capacitor plugins
 async function initCapacitor() {
@@ -42,6 +43,33 @@ async function initCapacitor() {
   } catch (error) {
     console.log('Capacitor not available (running in browser)', error);
   }
+}
+
+// Handle media commands from Android media controls
+if (typeof window !== 'undefined') {
+  window.handleMediaCommand = async (command) => {
+    console.log('📱 Received media command:', command);
+    try {
+      switch (command) {
+        case 'play':
+          await musicStore.togglePlayPause();
+          break;
+        case 'pause':
+          await musicStore.togglePlayPause();
+          break;
+        case 'skipNext':
+          await musicStore.playNext();
+          break;
+        case 'skipPrevious':
+          await musicStore.playPrevious();
+          break;
+        default:
+          console.warn('Unknown media command:', command);
+      }
+    } catch (error) {
+      console.error('Error handling media command:', error);
+    }
+  };
 }
 
 initCapacitor();

@@ -154,31 +154,29 @@
     isDragging = false;
     const deltaX = currentX - startX;
     const maxOffset = containerWidth * 0.9; // Max offset to fully show now playing
-    const threshold = maxOffset * 0.3; // 30% threshold relative to max offset (symmetric)
+    // Use a single threshold - 20% of max offset to switch pages in either direction
+    const switchThreshold = maxOffset * 0.2; // 20% of screen width to switch pages
     
     // Only process swipe if it was horizontal
     if (isHorizontalSwipe) {
-      // Determine final position based on current offsetX with symmetric threshold
-      // If offsetX is within 30% of maxOffset, snap to now playing
-      // If offsetX is within 30% of 0, snap to home
-      // Otherwise, snap to whichever is closer
-      if (offsetX > maxOffset - threshold) {
-        // Transition to now playing (stay in carousel, no navigation)
-        currentPosition = 1;
-        offsetX = maxOffset;
-      } else if (offsetX < threshold) {
-        // Stay/go to home (position 0, showing 10% peek of now playing)
-        currentPosition = 0;
-        offsetX = 0;
-      } else {
-        // Snap to whichever is closer (midpoint between threshold zones)
-        const midPoint = maxOffset * 0.5;
-        if (offsetX > midPoint) {
+      // Check which direction we're going based on current position
+      if (currentPosition === 0) {
+        // Currently on home - if dragged past threshold toward now playing, switch
+        if (offsetX > switchThreshold) {
           currentPosition = 1;
           offsetX = maxOffset;
         } else {
           currentPosition = 0;
           offsetX = 0;
+        }
+      } else {
+        // Currently on now playing - if dragged past threshold toward home, switch back
+        if (offsetX < maxOffset - switchThreshold) {
+          currentPosition = 0;
+          offsetX = 0;
+        } else {
+          currentPosition = 1;
+          offsetX = maxOffset;
         }
       }
     }
