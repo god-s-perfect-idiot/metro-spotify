@@ -13,11 +13,8 @@
 	let currentTime = '';
 	let batteryLevel = null;
 	let isCharging = false;
-	let isOnline = true;
-	let connectionType = 'unknown';
 	let timeInterval;
 	let clockAnimated = false;
-	let wifiAnimated = false;
 	let batteryAnimated = false;
 	let previousRoute = '';
 	
@@ -75,19 +72,6 @@
 		}
 	}
 
-	// Get network information
-	function updateNetwork() {
-		if (!browser) return;
-
-		isOnline = navigator.onLine;
-
-		if ('connection' in navigator) {
-			const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-			if (conn) {
-				connectionType = conn.effectiveType || 'unknown';
-			}
-		}
-	}
 
 	// Status bar background color
 	$: statusBarBg = backgroundTheme === 'light' ? '#ffffff' : '#000000';
@@ -103,25 +87,7 @@
 		// Get battery info
 		updateBattery();
 
-		// Get network info
-		updateNetwork();
-
-		// Listen for online/offline events
-		window.addEventListener('online', updateNetwork);
-		window.addEventListener('offline', updateNetwork);
-
-		// Listen for connection changes
-		if ('connection' in navigator) {
-			const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-			if (conn) {
-				conn.addEventListener('change', updateNetwork);
-			}
-		}
-
 		// Trigger all animations on initial mount
-		setTimeout(() => {
-			wifiAnimated = true;
-		}, 50);
 		setTimeout(() => {
 			batteryAnimated = true;
 		}, 200);
@@ -134,33 +100,16 @@
 		if (timeInterval) {
 			clearInterval(timeInterval);
 		}
-		if (browser) {
-			window.removeEventListener('online', updateNetwork);
-			window.removeEventListener('offline', updateNetwork);
-		}
 	});
-
-	// Get network icon
-	function getNetworkIcon() {
-		if (!isOnline) return 'material-symbols:wifi-off';
-		if (connectionType === '4g' || connectionType === 'slow-2g') return 'material-symbols:signal-cellular-2-bar';
-		return 'material-symbols:android-wifi-3-bar';
-	}
 
 	// Trigger all status bar animations with staggered delays
 	async function triggerClockAnimation() {
 		// Reset all animations
-		wifiAnimated = false;
 		batteryAnimated = false;
 		clockAnimated = false;
 		await tick();
 		
-		// Wifi drops first (0ms delay)
-		setTimeout(() => {
-			wifiAnimated = true;
-		}, 50);
-		
-		// Battery drops second (150ms delay)
+		// Battery drops first (150ms delay)
 		setTimeout(() => {
 			batteryAnimated = true;
 		}, 400);
@@ -174,9 +123,6 @@
 
 <div class="status-bar {textColorClass}">
 	<div class="status-left">
-		<div class="status-item wifi-icon {wifiAnimated ? 'wifi-animated' : ''}" title="Network: {isOnline ? connectionType : 'Offline'}">
-			<Icon icon='{getNetworkIcon()}' width="20" height="20" />
-		</div>
 	</div>
 
 	<div class="status-right">
@@ -276,16 +222,6 @@
 		background-color: #e32f17;
 	}
 
-	.wifi-icon {
-		opacity: 0;
-		transform: translateY(-20px) rotate(-45deg);
-		transition: none;
-	}
-
-	.wifi-animated {
-		animation: wifiBounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
-	}
-
 	.battery-container {
 		opacity: 0;
 		transform: translateY(-20px);
@@ -304,24 +240,6 @@
 
 	.clock-animated {
 		animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
-	}
-
-	@keyframes wifiBounceIn {
-		0% {
-			opacity: 0;
-			transform: translateY(-20px) rotate(-45deg);
-		}
-		60% {
-			opacity: 1;
-			transform: translateY(2px) rotate(-45deg);
-		}
-		80% {
-			transform: translateY(-2px) rotate(-45deg);
-		}
-		100% {
-			opacity: 1;
-			transform: translateY(0) rotate(-45deg);
-		}
 	}
 
 	@keyframes bounceIn {

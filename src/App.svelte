@@ -18,6 +18,8 @@
   import UserPlaylistsPage from "./pages/UserPlaylistsPage.svelte";
   import SettingsPage from "./pages/SettingsPage.svelte";
   import SpotifyCallback from "./pages/SpotifyCallback.svelte";
+  import SearchResultsPage from "./pages/SearchResultsPage.svelte";
+  import SearchResultsTypePage from "./pages/SearchResultsTypePage.svelte";
   import StatusBar from "./components/StatusBar.svelte";
   import BottomControls from "./components/BottomControls.svelte";
   import SpotifyBottomBarContent from "./components/SpotifyBottomBarContent.svelte";
@@ -35,6 +37,8 @@
   let authPageRef = null;
 
   $: route = $currentRoute;
+  // Extract pathname for route matching (ignore query string and hash)
+  $: routePath = route.split('?')[0].split('#')[0];
   $: console.log("📍 Current route:", route);
 
   // Track if bottom bar should be visible and handle exit animation
@@ -74,7 +78,12 @@
           previousRoute.startsWith("/album/") ||
           previousRoute === "/people" ||
           previousRoute.startsWith("/user/") ||
-          previousRoute === "/settings") &&
+          previousRoute === "/settings" ||
+          previousRoute.startsWith("/search/tracks") ||
+          previousRoute.startsWith("/search/albums") ||
+          previousRoute.startsWith("/search/artists") ||
+          previousRoute.startsWith("/search/playlists") ||
+          previousRoute.startsWith("/search")) &&
         !previousRoute.includes("callback");
       const hasBottomBar = shouldShowBottomBar;
 
@@ -97,14 +106,19 @@
       route === "/now-playing" ||
       route === "/play-queue" ||
       route === "/playlists" ||
-      route.startsWith("/playlist/") ||
+      routePath.startsWith("/playlist/") ||
       route === "/artists" ||
-      route.startsWith("/artist/") ||
+      routePath.startsWith("/artist/") ||
       route === "/albums" ||
-      route.startsWith("/album/") ||
+      routePath.startsWith("/album/") ||
       route === "/people" ||
-      route.startsWith("/user/") ||
-      route === "/settings") &&
+      routePath.startsWith("/user/") ||
+      route === "/settings" ||
+      routePath.startsWith("/search/tracks") ||
+      routePath.startsWith("/search/albums") ||
+      routePath.startsWith("/search/artists") ||
+      routePath.startsWith("/search/playlists") ||
+      routePath.startsWith("/search")) &&
     !route.includes("callback");
 
   // Subscribe to stores for bottom bar
@@ -125,20 +139,23 @@
     if (route === "/play-queue") {
       return "play-queue";
     }
-    if (route === "/playlists" || route.startsWith("/playlist/")) {
+    if (route === "/playlists" || routePath.startsWith("/playlist/")) {
       return "playlists";
     }
-    if (route === "/artists" || route.startsWith("/artist/")) {
+    if (route === "/artists" || routePath.startsWith("/artist/")) {
       return "artists";
     }
-    if (route === "/albums" || route.startsWith("/album/")) {
+    if (route === "/albums" || routePath.startsWith("/album/")) {
       return "albums";
     }
-    if (route === "/people" || route.startsWith("/user/")) {
+    if (route === "/people" || routePath.startsWith("/user/")) {
       return "people";
     }
     if (route === "/settings") {
       return "settings";
+    }
+    if (routePath.startsWith("/search")) {
+      return "library";
     }
     return "library";
   })();
@@ -221,7 +238,7 @@
 
     <!-- Main Content (with padding for status bar + 1rem padding around) -->
     <div class="w-full h-full content-container" style="padding-top: {route === '/' || route === '' ? '0' : '2rem'};">
-      {#if route.startsWith('/spotify/callback') || route.startsWith('/callback')}
+      {#if routePath.startsWith('/spotify/callback') || routePath.startsWith('/callback')}
         <SpotifyCallback />
       {:else if route === '/spotify'}
         <SpotifyPage bind:this={spotifyPageRef} {isExiting} />
@@ -231,22 +248,32 @@
         <PlayQueuePage {isExiting} />
       {:else if route === '/playlists'}
         <PlaylistsPage {isExiting} />
-      {:else if route.startsWith('/playlist/')}
+      {:else if routePath.startsWith('/playlist/')}
         <PlaylistTracksPage {isExiting} />
       {:else if route === '/artists'}
         <ArtistsPage {isExiting} />
-      {:else if route.startsWith('/artist/')}
+      {:else if routePath.startsWith('/artist/')}
         <ArtistTracksPage {isExiting} />
       {:else if route === '/albums'}
         <AlbumsPage {isExiting} />
-      {:else if route.startsWith('/album/')}
+      {:else if routePath.startsWith('/album/')}
         <AlbumTracksPage {isExiting} />
       {:else if route === '/people'}
         <PeoplePage {isExiting} />
-      {:else if route.startsWith('/user/')}
+      {:else if routePath.startsWith('/user/')}
         <UserPlaylistsPage {isExiting} />
       {:else if route === '/settings'}
         <SettingsPage {isExiting} />
+      {:else if routePath.startsWith('/search/tracks')}
+        <SearchResultsTypePage {isExiting} type="tracks" />
+      {:else if routePath.startsWith('/search/albums')}
+        <SearchResultsTypePage {isExiting} type="albums" />
+      {:else if routePath.startsWith('/search/artists')}
+        <SearchResultsTypePage {isExiting} type="artists" />
+      {:else if routePath.startsWith('/search/playlists')}
+        <SearchResultsTypePage {isExiting} type="playlists" />
+      {:else if routePath.startsWith('/search')}
+        <SearchResultsPage {isExiting} />
       {:else if route === '/' || route === ''}
         <CarouselHomePage isExiting={homePageIsExiting} />
       {:else}

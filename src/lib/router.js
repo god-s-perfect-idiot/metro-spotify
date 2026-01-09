@@ -20,6 +20,8 @@ export const router = {
 // Handle browser back/forward
 if (typeof window !== 'undefined') {
   window.addEventListener('popstate', () => {
-    currentRoute.set(window.location.pathname);
+    const path = window.location.pathname;
+    const search = window.location.search;
+    currentRoute.set(path + search);
   });
 }

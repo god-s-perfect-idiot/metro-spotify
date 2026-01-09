@@ -4,7 +4,7 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 export default defineConfig({
   plugins: [svelte()],
   server: {
-    port: 5173,
+    port: 6888,
     host: true,
     allowedHosts: ['ready-laws-grin.loca.lt/']
   },

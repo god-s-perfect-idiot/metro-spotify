@@ -1,9 +1,16 @@
-// Helper function to get Client ID from localStorage only
+// Helper function to get Client ID from localStorage or environment variable
 function getClientId() {
 	if (typeof window !== 'undefined') {
-		return localStorage.getItem('spotify_client_id') || '';
+		// Check localStorage first (user override), then fall back to environment variable
+		const localClientId = localStorage.getItem('spotify_client_id');
+		if (localClientId) {
+			return localClientId;
+		}
+		// Fall back to environment variable (for default/shared Client ID)
+		return import.meta.env.VITE_SPOTIFY_CLIENT_ID || '';
 	}
-	return '';
+	// Server-side fallback
+	return import.meta.env.VITE_SPOTIFY_CLIENT_ID || '';
 }
 
 // Spotify configuration constants

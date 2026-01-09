@@ -42,7 +42,22 @@
 
   function goToHome() {
     collapseBar();
-    router.goto("/");
+    const route = $currentRoute;
+    // Check if we're on a search results type page (not the main search results page)
+    const routePath = route.split('?')[0];
+    if (routePath && (routePath === "/search/tracks" || 
+                      routePath === "/search/albums" || 
+                      routePath === "/search/artists" || 
+                      routePath === "/search/playlists")) {
+      // Extract search query from current route
+      const urlParams = new URLSearchParams(route.split('?')[1] || '');
+      const searchQuery = urlParams.get("q") || "";
+      // Navigate back to search results page
+      router.goto(`/search?q=${encodeURIComponent(searchQuery)}`);
+    } else {
+      // For main search results page or other pages, go home
+      router.goto("/");
+    }
   }
 
   function goToNowPlaying() {
