@@ -26,9 +26,6 @@ async function initCapacitor() {
         StatusBar.setBackgroundColor({ color: '#000000' }).catch(() => {});
         StatusBar.setStyle({ style: Style.Light }).catch(() => {});
         StatusBar.hide().catch(() => {});
-      } else {
-        // App went to background - mark cache for clearing on next open
-        cacheManager.markForClear();
       }
     });
     

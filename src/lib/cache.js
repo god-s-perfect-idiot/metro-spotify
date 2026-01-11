@@ -26,24 +26,9 @@ class CacheManager {
     // Update session ID
     localStorage.setItem(APP_SESSION_KEY, this.sessionId);
     
-    // Listen for app state changes (for Capacitor)
-    if (window.Capacitor) {
-      import('@capacitor/app').then(({ App }) => {
-        App.addListener('appStateChange', ({ isActive }) => {
-          if (!isActive) {
-            // App went to background - mark for cache clear on next open
-            this.markForClear();
-          }
-        });
-      }).catch(() => {
-        // Capacitor not available, ignore
-      });
-    }
-    
-    // Listen for page unload (for web)
-    window.addEventListener('beforeunload', () => {
-      this.markForClear();
-    });
+    // Don't clear cache on app state changes or page unload
+    // Cache should persist across page navigations and when app goes to background
+    // Only clear cache when a new session is detected (app was fully closed and reopened)
   }
 
   getOrCreateSession() {
@@ -55,12 +40,6 @@ class CacheManager {
       sessionStorage.setItem(APP_SESSION_KEY, sessionId);
     }
     return sessionId;
-  }
-
-  markForClear() {
-    if (typeof window === 'undefined') return;
-    // Store a flag that cache should be cleared on next session
-    localStorage.setItem('spotify_cache_should_clear', 'true');
   }
 
   clearAll() {
@@ -237,15 +216,6 @@ class CacheManager {
 
   async getOrFetch(key, fetchFn, options = {}) {
     const { forceRefresh = false, cacheType = null } = options;
-    
-    // Check if we should clear cache (new session)
-    if (typeof window !== 'undefined') {
-      const shouldClear = localStorage.getItem('spotify_cache_should_clear');
-      if (shouldClear === 'true') {
-        this.clearAll();
-        localStorage.removeItem('spotify_cache_should_clear');
-      }
-    }
     
     // Return cached data if available and not forcing refresh
     if (!forceRefresh) {
