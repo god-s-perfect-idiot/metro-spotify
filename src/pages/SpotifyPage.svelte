@@ -74,7 +74,7 @@
 		
 		// Check if client ID is configured
 		if (!spotifyClientId) {
-			addToast('Please enter your Spotify Client ID first.');
+			addToast('Enter Spotify Client ID');
 			return;
 		}
 
@@ -196,17 +196,17 @@
 
 			player.addListener('initialization_error', ({ message }) => {
 				console.error('❌ Spotify Player initialization error:', message);
-				addToast('Failed to initialize Metro Spotify player: ' + message);
+				addToast('Player initialization failed');
 			});
 
 			player.addListener('authentication_error', ({ message }) => {
 				console.error('❌ Spotify Player authentication error:', message);
-				addToast('Authentication error: ' + message);
+				addToast('Authentication error');
 			});
 
 			player.addListener('account_error', ({ message }) => {
 				console.error('❌ Spotify Player account error:', message);
-				addToast('Account error: ' + message);
+				addToast('Account error');
 			});
 
 			player.addListener('playback_error', ({ message }) => {
@@ -235,11 +235,11 @@
 					console.log('✅ Spotify Web Player connected successfully');
 				} else {
 					console.error('❌ Spotify Web Player connection returned false');
-					addToast('Failed to connect Metro Spotify player. Please refresh the page.');
+					addToast('Failed to connect player. Refresh page.');
 				}
 			}).catch((error) => {
 				console.error('❌ Failed to connect Spotify Web Player:', error);
-				addToast('Failed to connect Metro Spotify player: ' + (error.message || 'Unknown error'));
+				addToast('Failed to connect player');
 			});
 
 			window.spotifyPlayer = player;
@@ -275,12 +275,15 @@
 				musicStore.setSelectedDeviceId(metroPlayer.id);
 				console.log('✅ Metro Spotify device selected:', metroPlayer.id);
 			} else {
-				// DO NOT fall back to other devices - only use Metro Spotify
-				console.warn('⚠️ Metro Spotify device not found. Waiting for device to be available...');
-				// Clear device selection to prevent using wrong device
-				selectedDeviceId = null;
-				selectedDeviceName = null;
-				musicStore.setSelectedDeviceId(null);
+				// DO NOT clear device ID if we already have one from ready event
+				// The device_id from ready event is trustworthy even if not in device list yet
+				if (!selectedDeviceId) {
+					// Only log warning if we don't have a device ID set yet
+					console.warn('⚠️ Metro Spotify device not found in device list, and no device ID set yet');
+				} else {
+					// Trust the device ID from ready event - don't clear it
+					console.log('✅ Keeping device ID from ready event:', selectedDeviceId);
+				}
 			}
 		} catch (error) {
 			console.error('Error loading devices:', error);
@@ -330,7 +333,7 @@
 				...song,
 				type: 'spotify'
 			}));
-			musicStore.setQueue(tracksWithType);
+			// Don't set queue here - queue is set when playing via playTrack()
 
 			organizeSongsByLetter();
 		} catch (error) {

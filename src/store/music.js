@@ -23,11 +23,19 @@ class MusicStore {
     this.justAppliedPreferences = false; // Flag to prevent polling from overriding preferences right after applying them
     this.preferencesApplyTimeout = null; // Timeout to clear the justAppliedPreferences flag
     
+    // Shuffle system: cache original and shuffled orders
+    this.originalQueue = []; // Original track order
+    this.shuffledQueue = []; // Shuffled track order
+    
     // Load shuffle and repeat preferences from localStorage
-    const savedShuffle = typeof window !== 'undefined' ? localStorage.getItem('metro_spotify_shuffle') : null;
+    let savedShuffle = false;
+    if (typeof window !== 'undefined') {
+      const shuffleValue = localStorage.getItem('metro_spotify_shuffle');
+      savedShuffle = shuffleValue === 'true';
+    }
     const savedRepeat = typeof window !== 'undefined' ? localStorage.getItem('metro_spotify_repeat') : null;
     
-    this.shuffle = writable(savedShuffle === 'true' ? true : false); // Shuffle state: on or off
+    this.shuffle = writable(savedShuffle); // Shuffle state: on or off
     this.repeat = writable(savedRepeat && ['off', 'all', 'one'].includes(savedRepeat) ? savedRepeat : 'off'); // Repeat state: 'off', 'all', 'one'
     
     // Subscribe to changes and save to localStorage
@@ -169,8 +177,7 @@ class MusicStore {
     }
 
     // Need to find the Metro Spotify web player from device list
-    // The device name might not be exactly "Metro Spotify" - Spotify may use "Web Player (Chrome)" etc.
-    // So we'll look for active Computer/Web Player devices
+    // Only devices with names starting with "Metro Spotify" should be used
     const maxRetries = 5;
     const retryDelay = 1000; // 1 second
     
@@ -197,22 +204,8 @@ class MusicStore {
           );
         }
 
-        // If not found by name, look for Computer/Web Player devices (even if not active)
-        // The Metro Spotify web player is a Computer type device
-        // Note: It might not be active yet, but we can still use it
-        if (!metroPlayer) {
-          // Look for Computer type devices (web players)
-          const webPlayers = availableDevices.filter(
-            (device) => device.type === 'Computer'
-          );
-          
-          if (webPlayers.length > 0) {
-            // Prefer active ones, but use any web player if none are active
-            const activeWebPlayer = webPlayers.find(d => d.is_active === true);
-            metroPlayer = activeWebPlayer || webPlayers[0];
-            console.log('⚠️ Metro Spotify not found by name, using web player:', metroPlayer.name, '(active:', metroPlayer.is_active, ')');
-          }
-        }
+        // DO NOT fall back to other devices - only use Metro Spotify devices
+        // This ensures audio always plays from the Metro player itself
 
         if (metroPlayer) {
           this.selectedDeviceId = metroPlayer.id;
@@ -241,8 +234,74 @@ class MusicStore {
     throw new Error('Metro Spotify device not found after multiple attempts. Please ensure the web player is connected and try again.');
   }
 
+  // Fisher-Yates shuffle algorithm
+  _shuffleArray(array) {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }
+
+  // Apply shuffle to queue while keeping current track in place
+  _applyShuffleToQueue() {
+    const state = this.getCurrentState();
+    const isShuffled = state.shuffle;
+    
+    if (!isShuffled) {
+      // Restore original order
+      if (this.originalQueue.length > 0) {
+        this.queue.set([...this.originalQueue]);
+        // Update current index based on current track
+        if (state.currentTrack) {
+          const currentUri = state.currentTrack.uri;
+          const newIndex = this.originalQueue.findIndex(t => t.uri === currentUri);
+          if (newIndex >= 0) {
+            this.currentIndex.set(newIndex);
+          }
+        }
+      }
+    } else {
+      // Apply shuffle
+      if (this.originalQueue.length > 0) {
+        // If we have a current track, keep it first and shuffle the rest
+        let shuffled;
+        if (state.currentTrack) {
+          const currentUri = state.currentTrack.uri;
+          const currentTrack = this.originalQueue.find(t => t.uri === currentUri);
+          if (currentTrack) {
+            const remainingTracks = this.originalQueue.filter(t => t.uri !== currentUri);
+            const shuffledRemaining = this._shuffleArray(remainingTracks);
+            shuffled = [currentTrack, ...shuffledRemaining];
+            this.currentIndex.set(0);
+          } else {
+            // Current track not found in original queue, just shuffle everything
+            shuffled = this._shuffleArray(this.originalQueue);
+          }
+        } else {
+          // No current track, just shuffle everything
+          shuffled = this._shuffleArray(this.originalQueue);
+        }
+        this.shuffledQueue = shuffled;
+        this.queue.set([...shuffled]);
+      }
+    }
+  }
+
   setQueue(tracks) {
-    this.queue.set(tracks);
+    // Store original order
+    this.originalQueue = [...tracks];
+    
+    // Apply shuffle if enabled
+    const state = this.getCurrentState();
+    if (state.shuffle) {
+      const shuffled = this._shuffleArray(tracks);
+      this.shuffledQueue = shuffled;
+      this.queue.set(shuffled);
+    } else {
+      this.queue.set([...tracks]);
+    }
   }
 
   async playTrack(track, index = -1, allTracks = []) {
@@ -270,71 +329,79 @@ class MusicStore {
         // Apply saved shuffle preference BEFORE playing (so queue is shuffled correctly)
         const savedShuffle = typeof window !== 'undefined' ? localStorage.getItem('metro_spotify_shuffle') === 'true' : false;
         if (savedShuffle !== this.getCurrentState().shuffle) {
-          try {
-            console.log('🔄 Applying saved shuffle preference before playing:', savedShuffle);
-            await this.spotifyApi.setShuffle(savedShuffle, { device_id: this.selectedDeviceId });
-            this.shuffle.set(savedShuffle);
-            // Set flag to prevent polling from overriding this for a few seconds
-            this.justAppliedPreferences = true;
-            if (this.preferencesApplyTimeout) {
-              clearTimeout(this.preferencesApplyTimeout);
-            }
-            this.preferencesApplyTimeout = setTimeout(() => {
-              this.justAppliedPreferences = false;
-            }, 3000);
-          } catch (error) {
-            console.error('Error applying shuffle preference:', error);
-          }
+          this.shuffle.set(savedShuffle);
         }
         
-        // Get all URIs starting from the selected track
-        const allUris = allTracks.slice(actualIndex).map(t => t.uri);
+        // Store the original order
+        this.originalQueue = [...allTracks];
+        
+        // Apply shuffle if enabled - we manage shuffle ourselves, so turn off Spotify's shuffle
+        const shuffleEnabled = this.getCurrentState().shuffle;
+        let tracksToPlay = [...allTracks];
+        let queueIndex = actualIndex;
+        
+        if (shuffleEnabled) {
+          // Keep the current track first, shuffle the rest
+          const currentTrackItem = allTracks[actualIndex];
+          const remainingTracks = allTracks.filter((_, idx) => idx !== actualIndex);
+          const shuffledRemaining = this._shuffleArray(remainingTracks);
+          tracksToPlay = [currentTrackItem, ...shuffledRemaining];
+          this.shuffledQueue = tracksToPlay;
+          queueIndex = 0;
+        } else {
+          this.shuffledQueue = [];
+        }
+        
+        // Get URIs from the tracks (shuffled or original order)
+        // Start from the selected track position in the ordered list
+        const startIndex = shuffleEnabled ? 0 : queueIndex;
+        const urisToSend = tracksToPlay.slice(startIndex).map(t => t.uri);
         
         // Spotify API has a limit of ~50 URIs per request to avoid 413 errors
-        // We'll send the first 50 URIs, and the full queue is still tracked for navigation
         const MAX_URIS_PER_REQUEST = 50;
-        const urisToPlay = allUris.slice(0, MAX_URIS_PER_REQUEST);
+        const urisToPlay = urisToSend.slice(0, MAX_URIS_PER_REQUEST);
         
         // Play the selected track and first batch of tracks
-        await this.spotifyApi.play({
-          device_id: this.selectedDeviceId,
-          uris: urisToPlay
-        });
+        console.log('🔵 playTrack: Calling spotifyApi.play() with URIs:', { urisCount: urisToPlay.length, firstUri: urisToPlay[0], deviceId: this.selectedDeviceId });
+        try {
+          await this.spotifyApi.play({
+            device_id: this.selectedDeviceId,
+            uris: urisToPlay
+          });
+          console.log('✅ playTrack: spotifyApi.play() completed successfully');
+        } catch (playError) {
+          console.error('❌ playTrack: Error calling play():', playError);
+          console.error('❌ playTrack: Error details:', { message: playError.message, status: playError.status });
+          throw playError;
+        }
         
-        // Note: The full queue is still stored in the music store for navigation purposes
-        // When users skip tracks, Spotify will handle playback from its internal queue
-        
-        // Store the full queue
-        this.queue.set(allTracks);
-        this.currentIndex.set(actualIndex);
+        // Update queue and index
+        console.log('🔵 playTrack: Updating queue and index:', { queueLength: tracksToPlay.length, queueIndex });
+        this.queue.set(tracksToPlay);
+        this.currentIndex.set(queueIndex);
       } else {
-        // Apply saved shuffle preference BEFORE playing
+        // Apply saved shuffle preference
         const savedShuffle = typeof window !== 'undefined' ? localStorage.getItem('metro_spotify_shuffle') === 'true' : false;
         if (savedShuffle !== this.getCurrentState().shuffle) {
-          try {
-            console.log('🔄 Applying saved shuffle preference before playing:', savedShuffle);
-            await this.spotifyApi.setShuffle(savedShuffle, { device_id: this.selectedDeviceId });
-            this.shuffle.set(savedShuffle);
-            // Set flag to prevent polling from overriding this for a few seconds
-            this.justAppliedPreferences = true;
-            if (this.preferencesApplyTimeout) {
-              clearTimeout(this.preferencesApplyTimeout);
-            }
-            this.preferencesApplyTimeout = setTimeout(() => {
-              this.justAppliedPreferences = false;
-            }, 3000);
-          } catch (error) {
-            console.error('Error applying shuffle preference:', error);
-          }
+          this.shuffle.set(savedShuffle);
         }
         
         // If no list provided, just play the single track
-        await this.spotifyApi.play({
-          device_id: this.selectedDeviceId,
-          uris: [track.uri]
-        });
+        console.log('🔵 playTrack: Calling spotifyApi.play() with single track:', { trackUri: track.uri, deviceId: this.selectedDeviceId });
+        try {
+          await this.spotifyApi.play({
+            device_id: this.selectedDeviceId,
+            uris: [track.uri]
+          });
+          console.log('✅ playTrack: spotifyApi.play() (single track) completed successfully');
+        } catch (playError) {
+          console.error('❌ playTrack: Error calling play() (single track):', playError);
+          console.error('❌ playTrack: Error details:', { message: playError.message, status: playError.status });
+          throw playError;
+        }
         
         // Store just this track in queue
+        this.originalQueue = [track];
         this.queue.set([track]);
         this.currentIndex.set(0);
       }
@@ -505,86 +572,169 @@ class MusicStore {
   }
 
   async playNext() {
-    if (!this.spotifyApi) return;
+    console.log('🔵 playNext() called');
+    if (!this.spotifyApi) {
+      console.error('❌ playNext: Spotify API not initialized');
+      return;
+    }
 
     // Ensure we're using Metro Spotify device
+    console.log('🔵 playNext: Ensuring Metro Spotify device...');
     await this.ensureMetroSpotifyDevice();
 
+    if (!this.selectedDeviceId) {
+      console.error('❌ playNext: No device selected');
+      return;
+    }
+    console.log('✅ playNext: Device available:', this.selectedDeviceId);
+
     // Set buffering state when skipping
+    console.log('🔵 playNext: Setting buffering state to true');
     this.isBuffering.set(true);
 
     try {
       // Get current queue state
       const queue = this.getCurrentState().queue;
       const currentIdx = this.getCurrentState().currentIndex;
+      console.log('🔵 playNext: Queue state:', { queueLength: queue.length, currentIdx, hasNext: queue.length > 0 && currentIdx >= 0 && currentIdx < queue.length - 1 });
       
       // Check if there's a next track in our queue
       if (queue.length > 0 && currentIdx >= 0 && currentIdx < queue.length - 1) {
-        // Use Spotify's skip to next (which will play from queue)
-        await this.spotifyApi.skipToNext({ device_id: this.selectedDeviceId });
-        // Update index
-        this.currentIndex.set(currentIdx + 1);
+        const nextIndex = currentIdx + 1;
+        const nextTrack = queue[nextIndex];
+        console.log('🔵 playNext: Playing next track from queue:', { nextIndex, trackName: nextTrack?.name, trackUri: nextTrack?.uri });
+        
+        // Play the next track from our queue
+        console.log('🔵 playNext: Calling spotifyApi.play()...');
+        await this.spotifyApi.play({
+          device_id: this.selectedDeviceId,
+          uris: [nextTrack.uri]
+        });
+        console.log('✅ playNext: spotifyApi.play() completed successfully');
+        
+        // Update index and track
+        console.log('🔵 playNext: Updating index and track state...');
+        this.currentIndex.set(nextIndex);
+        this.currentTrack.set(nextTrack);
+        this.isPlaying.set(true);
+        console.log('✅ playNext: State updated', { nextIndex, trackName: nextTrack?.name });
+        
+        // Update track state after a delay to allow playback to start
+        console.log('🔵 playNext: Scheduling updateCurrentTrack() in 500ms...');
+        setTimeout(() => {
+          console.log('🔵 playNext: Calling updateCurrentTrack()...');
+          this.updateCurrentTrack();
+        }, 500);
       } else {
-        // Fallback to Spotify's queue
+        // Fallback to Spotify's skip if no queue
+        console.log('🔵 playNext: No queue or at end, using Spotify skipToNext');
         await this.spotifyApi.skipToNext({ device_id: this.selectedDeviceId });
+        await this.updateCurrentTrack();
       }
-      
-      // Update track state - this will clear buffering when new track starts
-      await this.updateCurrentTrack();
     } catch (error) {
-      console.error('Error playing next:', error);
+      console.error('❌ playNext: Error playing next:', error);
+      console.error('❌ playNext: Error details:', { message: error.message, status: error.status, stack: error.stack });
       // Clear buffering on error
       this.isBuffering.set(false);
     }
   }
 
   async playPrevious() {
-    if (!this.spotifyApi) return;
+    console.log('🔵 playPrevious() called');
+    if (!this.spotifyApi) {
+      console.error('❌ playPrevious: Spotify API not initialized');
+      return;
+    }
 
     // Ensure we're using Metro Spotify device
+    console.log('🔵 playPrevious: Ensuring Metro Spotify device...');
     await this.ensureMetroSpotifyDevice();
 
+    if (!this.selectedDeviceId) {
+      console.error('❌ playPrevious: No device selected');
+      return;
+    }
+    console.log('✅ playPrevious: Device available:', this.selectedDeviceId);
+
     // Set buffering state when skipping
+    console.log('🔵 playPrevious: Setting buffering state to true');
     this.isBuffering.set(true);
 
     try {
       // Get current queue state
       const queue = this.getCurrentState().queue;
       const currentIdx = this.getCurrentState().currentIndex;
+      console.log('🔵 playPrevious: Queue state:', { queueLength: queue.length, currentIdx, hasPrevious: queue.length > 0 && currentIdx > 0 });
       
       // Check if there's a previous track in our queue
       if (queue.length > 0 && currentIdx > 0) {
-        // Use Spotify's skip to previous
-        await this.spotifyApi.skipToPrevious({ device_id: this.selectedDeviceId });
-        // Update index
-        this.currentIndex.set(currentIdx - 1);
+        const prevIndex = currentIdx - 1;
+        const prevTrack = queue[prevIndex];
+        console.log('🔵 playPrevious: Playing previous track from queue:', { prevIndex, trackName: prevTrack?.name, trackUri: prevTrack?.uri });
+        
+        // Play the previous track from our queue
+        console.log('🔵 playPrevious: Calling spotifyApi.play()...');
+        await this.spotifyApi.play({
+          device_id: this.selectedDeviceId,
+          uris: [prevTrack.uri]
+        });
+        console.log('✅ playPrevious: spotifyApi.play() completed successfully');
+        
+        // Update index and track
+        console.log('🔵 playPrevious: Updating index and track state...');
+        this.currentIndex.set(prevIndex);
+        this.currentTrack.set(prevTrack);
+        this.isPlaying.set(true);
+        console.log('✅ playPrevious: State updated', { prevIndex, trackName: prevTrack?.name });
+        
+        // Update track state after a delay to allow playback to start
+        console.log('🔵 playPrevious: Scheduling updateCurrentTrack() in 500ms...');
+        setTimeout(() => {
+          console.log('🔵 playPrevious: Calling updateCurrentTrack()...');
+          this.updateCurrentTrack();
+        }, 500);
       } else {
-        // Fallback to Spotify's queue
+        // Fallback to Spotify's skip if no queue
+        console.log('🔵 playPrevious: No queue or at start, using Spotify skipToPrevious');
         await this.spotifyApi.skipToPrevious({ device_id: this.selectedDeviceId });
+        await this.updateCurrentTrack();
       }
-      
-      // Update track state - this will clear buffering when new track starts
-      await this.updateCurrentTrack();
     } catch (error) {
-      console.error('Error playing previous:', error);
+      console.error('❌ playPrevious: Error playing previous:', error);
+      console.error('❌ playPrevious: Error details:', { message: error.message, status: error.status, stack: error.stack });
       // Clear buffering on error
       this.isBuffering.set(false);
     }
   }
 
   async updateCurrentTrack() {
-    if (!this.spotifyApi) return;
+    if (!this.spotifyApi) {
+      console.log('🟡 updateCurrentTrack: No Spotify API');
+      return;
+    }
     
     // Don't update if user explicitly navigated away
-    if (this.userNavigatedAway) return;
+    if (this.userNavigatedAway) {
+      console.log('🟡 updateCurrentTrack: User navigated away');
+      return;
+    }
 
     // Skip if we're in rate limit backoff
     if (this.rateLimitBackoff > 0) {
+      console.log('🟡 updateCurrentTrack: Rate limit backoff active');
       return;
     }
 
     try {
+      console.log('🔵 updateCurrentTrack: Fetching playback state from API...');
       const state = await this.spotifyApi.getMyCurrentPlaybackState();
+      console.log('🔵 updateCurrentTrack: Got playback state:', { 
+        hasItem: !!state.item, 
+        isPlaying: state.is_playing, 
+        progressMs: state.progress_ms,
+        trackName: state.item?.name,
+        trackUri: state.item?.uri 
+      });
       
       // Reset error counter on success
       this.consecutiveErrors = 0;
@@ -629,42 +779,8 @@ class MusicStore {
         };
         this.playbackProgress.set(progress);
         
-        // Update shuffle and repeat state from API
-        // Only update if we're not currently toggling (to prevent flicker) and haven't just applied preferences
-        if (typeof state.shuffle_state !== 'undefined' && !this.isTogglingShuffle && !this.justAppliedPreferences) {
-          // Restore saved shuffle preference on first detection if it differs from API
-          if (!this.hasRestoredPreferences) {
-            const savedShuffle = typeof window !== 'undefined' ? localStorage.getItem('metro_spotify_shuffle') === 'true' : false;
-            if (savedShuffle !== state.shuffle_state) {
-              // Restore saved shuffle preference
-              setTimeout(async () => {
-                try {
-                  if (!this.selectedDeviceId) {
-                    await this.ensureMetroSpotifyDevice();
-                  }
-                  if (this.selectedDeviceId) {
-                    console.log('🔄 Restoring saved shuffle preference:', savedShuffle);
-                    await this.spotifyApi.setShuffle(savedShuffle, { device_id: this.selectedDeviceId });
-                    this.shuffle.set(savedShuffle);
-                    this.hasRestoredPreferences = true;
-                  }
-                } catch (error) {
-                  console.error('Error restoring shuffle preference:', error);
-                  // Fall back to API state if restore fails
-                  this.shuffle.set(state.shuffle_state);
-                  this.hasRestoredPreferences = true;
-                }
-              }, 500);
-            } else {
-              // API state matches saved preference, just update
-              this.shuffle.set(state.shuffle_state);
-              this.hasRestoredPreferences = true;
-            }
-          } else {
-            // Already restored, just sync with API
-            this.shuffle.set(state.shuffle_state);
-          }
-        }
+        // Don't read shuffle state from API - we manage it ourselves
+        // Shuffle state is stored in localStorage and managed internally
         if (typeof state.repeat_state !== 'undefined' && !this.isCyclingRepeat && !this.justAppliedPreferences) {
           // Convert Spotify's repeat state to our format
           // 'off' -> 'off', 'context' -> 'all', 'track' -> 'one'
@@ -704,11 +820,19 @@ class MusicStore {
         }
         
         // Clear buffering state when we detect playback has started (progress > 0 or is_playing)
-        if (this.getCurrentState().isBuffering && (state.progress_ms > 0 || state.is_playing)) {
+        const isBuffering = this.getCurrentState().isBuffering;
+        const shouldClearBuffering = state.progress_ms > 0 || state.is_playing;
+        console.log('🔵 updateCurrentTrack: Buffering check:', { isBuffering, progressMs: state.progress_ms, isPlaying: state.is_playing, shouldClearBuffering });
+        if (isBuffering && shouldClearBuffering) {
+          console.log('✅ updateCurrentTrack: Clearing buffering state');
           this.isBuffering.set(false);
+        } else if (isBuffering) {
+          console.log('🟡 updateCurrentTrack: Still buffering, not clearing yet');
         }
       }
     } catch (error) {
+      console.error('❌ updateCurrentTrack: Error fetching playback state:', error);
+      console.error('❌ updateCurrentTrack: Error details:', { message: error.message, status: error.status });
       // Handle rate limiting (429 errors)
       if (error.status === 429) {
         this.consecutiveErrors++;
@@ -799,6 +923,8 @@ class MusicStore {
     this.serviceType.set(null);
     this.currentIndex.set(-1);
     this.queue.set([]);
+    this.originalQueue = [];
+    this.shuffledQueue = [];
     this.hasRestoredPreferences = false; // Reset flag when clearing
     this.justAppliedPreferences = false; // Reset flag when clearing
     if (this.preferencesApplyTimeout) {
@@ -855,16 +981,25 @@ class MusicStore {
         return;
       }
       
-      const currentShuffle = this.getCurrentState().shuffle;
+      const state = this.getCurrentState();
+      const currentShuffle = state.shuffle;
       const newShuffleState = !currentShuffle;
       
       console.log('🔄 Toggling shuffle:', { from: currentShuffle, to: newShuffleState, deviceId: this.selectedDeviceId });
       
-      // Optimistically update UI immediately
+      // Update shuffle state first (this will save to localStorage via subscription)
       this.shuffle.set(newShuffleState);
       
-      // Spotify API: setShuffle(state, options) where options can include device_id
-      await this.spotifyApi.setShuffle(newShuffleState, { device_id: this.selectedDeviceId });
+      // Apply shuffle to queue (reorder tracks in our internal queue)
+      this._applyShuffleToQueue();
+      
+      // Turn OFF Spotify's shuffle since we're managing it ourselves
+      await this.spotifyApi.setShuffle(false, { device_id: this.selectedDeviceId });
+      
+      // Note: We don't update Spotify's queue mid-playback to avoid interrupting the current song
+      // The queue order in our internal state is what matters for "up next" display and navigation
+      // When the user skips tracks, Spotify will continue from its queue, but our queue order
+      // is what's displayed and used for "up next" calculations
       
       console.log('✅ Shuffle toggled successfully');
       

@@ -43,7 +43,7 @@
     try {
       const hasToken = await accountsStore.hasValidToken("spotify");
       if (!hasToken) {
-        addToast("Please log in to Spotify to search.");
+        addToast("Log in to search");
         router.goto("/");
         return;
       }
@@ -58,7 +58,7 @@
       await loadAvailableDevices();
     } catch (error) {
       console.error("Error initializing Spotify API:", error);
-      addToast("Error connecting to Spotify.");
+      addToast("Error connecting to Spotify");
     }
   }
 
@@ -125,7 +125,7 @@
       };
     } catch (error) {
       console.error("Error searching Spotify:", error);
-      addToast("Error performing search. Please try again.");
+      addToast("Error performing search");
     } finally {
       isLoading = false;
     }
@@ -144,13 +144,13 @@
     } catch (error) {
       console.error("Error playing track:", error);
       if (error.message && error.message.includes('Metro Spotify device not found')) {
-        addToast('Metro Spotify device not found. Please wait a moment and try again.');
+        addToast('Device not found. Wait and retry');
       } else if (error.status === 404) {
-        addToast("No active Spotify device found.");
+        addToast("No active device found");
       } else if (error.status === 403) {
-        addToast("Playback requires Spotify Premium.");
+        addToast("Premium account required");
       } else {
-        addToast("Error playing track.");
+        addToast("Error playing track");
       }
     }
   }

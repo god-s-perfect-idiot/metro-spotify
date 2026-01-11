@@ -124,7 +124,7 @@
 				accountsStore.logout('spotify');
 				router.goto('/');
 			} else {
-				addToast('Failed to load playlists. Please try again.');
+				addToast('Failed to load playlists');
 			}
 		} finally {
 			isLoading = false;

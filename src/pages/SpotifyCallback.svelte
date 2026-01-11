@@ -153,7 +153,7 @@
 				console.log('✅ Auth verification after save:', { isAuth, hasToken });
 				
 				statusMessage = 'SUCCESS';
-				addToast('Spotify account connected successfully');
+				addToast('Account connected');
 				
 				// Use a small delay to ensure storage is written, then redirect
 				setTimeout(() => {

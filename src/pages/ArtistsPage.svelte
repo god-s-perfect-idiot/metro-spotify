@@ -131,14 +131,14 @@
 				router.goto('/');
 			} else if (error.status === 403) {
 				// Scope error - user needs to re-authenticate with new scopes
-				addToast('Please re-authenticate to access artists. Log out and sign in again.');
+				addToast('Re-authenticate to access artists');
 				console.error('Scope error: User needs to re-authenticate with user-follow-read scope');
 			} else if (error.status === 400) {
 				// Bad request - might be API issue
 				console.error('Bad request error:', error.message);
-				addToast('Error loading artists. Please try again later.');
+				addToast('Error loading artists');
 			} else {
-				addToast('Failed to load artists. Please try again.');
+				addToast('Failed to load artists');
 			}
 		} finally {
 			isLoading = false;

@@ -20,7 +20,7 @@
 
   async function submitDirectToken() {
     if (!accessToken) {
-      addToast("Please enter an access token.");
+      addToast("Enter access token");
       return;
     }
 
@@ -57,7 +57,7 @@
       // Save username
       localStorage.setItem("spotify_username", username);
 
-      addToast("Spotify account connected successfully");
+      addToast("Account connected");
 
       // Redirect to home with full page reload to ensure auth state is refreshed
       setTimeout(() => {
@@ -67,13 +67,13 @@
       console.error("Error validating or setting auth token:", error);
       
       // Determine error message based on the error
-      let errorMessage = "Failed to connect with token. Please check your token and try again.";
+      let errorMessage = "Failed to connect with token";
       if (error.status === 401) {
-        errorMessage = "Invalid access token. The token may be expired or incorrect.";
+        errorMessage = "Invalid access token";
       } else if (error.status === 403) {
-        errorMessage = "Token does not have required permissions.";
+        errorMessage = "Token lacks required permissions";
       } else if (error.message) {
-        errorMessage = `Token validation failed: ${error.message}`;
+        errorMessage = "Token validation failed";
       }
       
       addToast(errorMessage);

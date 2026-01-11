@@ -100,7 +100,7 @@
     }
 
     // Show toast notification
-    addToast("Logged out successfully");
+    addToast("Logged out");
 
     // Use window.location to force a full navigation which will ensure App.svelte re-evaluates
     // This is more reliable than router.replace for authentication state changes
@@ -109,7 +109,7 @@
 
   function handleClearCache() {
     cacheManager.clearSongCaches();
-    addToast("Song cache cleared successfully");
+    addToast("Cache cleared");
   }
 </script>
 

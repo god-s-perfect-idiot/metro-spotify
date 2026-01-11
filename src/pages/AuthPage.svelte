@@ -49,7 +49,7 @@
 		
 		// Check if client ID is configured
 		if (!spotifyClientId) {
-			addToast('Please enter your Spotify Client ID first.');
+			addToast('Enter Spotify Client ID');
 			return;
 		}
 

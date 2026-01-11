@@ -114,7 +114,7 @@
 				accountsStore.logout('spotify');
 				router.goto('/');
 			} else {
-				addToast('Failed to load albums. Please try again.');
+				addToast('Failed to load albums');
 			}
 		} finally {
 			isLoading = false;

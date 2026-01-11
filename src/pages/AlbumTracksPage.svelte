@@ -160,19 +160,17 @@
 			}, { cacheType: 'album_tracks' });
 
 			tracks = cachedData;
-
-			// Set queue to album tracks
-			musicStore.setQueue(tracks);
+			// Don't set queue here - queue is set when playing via playTrack()
 		} catch (error) {
 			console.error('Error loading album tracks:', error);
 			if (error.status === 401) {
 				accountsStore.logout('spotify');
 				router.goto('/');
 			} else if (error.status === 404) {
-				addToast('Album not found.');
+				addToast('Album not found');
 				router.goto('/albums');
 			} else {
-				addToast('Failed to load album tracks. Please try again.');
+				addToast('Failed to load album tracks');
 			}
 		} finally {
 			isLoading = false;
@@ -196,13 +194,13 @@
 		} catch (error) {
 			console.error('Error playing song:', error);
 			if (error.message && error.message.includes('Metro Spotify device not found')) {
-				addToast('Metro Spotify device not found. Please wait a moment and try again, or refresh the page.');
+				addToast('Device not found. Wait and retry');
 			} else if (error.status === 404) {
-				addToast('No active Spotify device found. Please open Spotify on another device.');
+				addToast('No active device found');
 			} else if (error.status === 403) {
-				addToast('Playback control requires a Spotify Premium account.');
+				addToast('Premium account required');
 			} else {
-				addToast(`Error playing song: ${error.message || 'Unknown error'}`);
+				addToast('Error playing song');
 			}
 		}
 	}

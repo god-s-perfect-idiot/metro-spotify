@@ -156,10 +156,10 @@
 				accountsStore.logout('spotify');
 				router.goto('/');
 			} else if (error.status === 404) {
-				addToast('User not found.');
+				addToast('User not found');
 				router.goto('/people');
 			} else {
-				addToast('Failed to load user playlists. Please try again.');
+				addToast('Failed to load user playlists');
 			}
 		} finally {
 			isLoading = false;

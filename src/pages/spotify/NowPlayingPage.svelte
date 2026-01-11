@@ -181,6 +181,32 @@
     }
   }
   
+  // Update committed next track when nextTrack changes (e.g., when shuffle is toggled)
+  // Only update if the current track hasn't changed (same URI)
+  $: if (nextTrack && nowPlayingTrack?.uri && nowPlayingTrack.uri === lastCurrentTrackUri) {
+    // Current track is the same, but nextTrack changed (e.g., shuffle toggle)
+    if (committedNextTrack?.uri !== nextTrack.uri) {
+      committedNextTrack = nextTrack;
+      
+      // Trigger animation if this is a different next track
+      if (previousNextTrackUri !== null && nextTrack.uri !== previousNextTrackUri) {
+        isNextTrackTransitioning = true;
+        setTimeout(() => {
+          isNextTrackTransitioning = false;
+        }, 400);
+      }
+      previousNextTrackUri = nextTrack.uri;
+    }
+  } else if (!nextTrack && nowPlayingTrack?.uri && nowPlayingTrack.uri === lastCurrentTrackUri) {
+    // Current track is the same, but nextTrack became null
+    if (committedNextTrack !== null) {
+      committedNextTrack = null;
+      if (previousNextTrackUri !== null) {
+        previousNextTrackUri = null;
+      }
+    }
+  }
+  
   // Initialize committed next track on first load
   $: if (nowPlayingTrack?.uri && lastCurrentTrackUri === null && nextTrack) {
     committedNextTrack = nextTrack;

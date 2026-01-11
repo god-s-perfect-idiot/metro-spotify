@@ -168,10 +168,10 @@
 				accountsStore.logout('spotify');
 				router.goto('/');
 			} else if (error.status === 403) {
-				addToast('Please re-authenticate to access people. Log out and sign in again.');
+				addToast('Re-authenticate to access people');
 				console.error('Scope error: User needs to re-authenticate with user-follow-read scope');
 			} else {
-				addToast('Failed to load people. Please try again.');
+				addToast('Failed to load people');
 			}
 		} finally {
 			isLoading = false;
