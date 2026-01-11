@@ -25,6 +25,14 @@
     }
 
     try {
+      // Save client ID and secret to localStorage for token refresh
+      if (spotifyClientId) {
+        localStorage.setItem("spotify_client_id", spotifyClientId);
+      }
+      if (spotifyClientSecret) {
+        localStorage.setItem("spotify_client_secret", spotifyClientSecret);
+      }
+
       // First, test the token by making an API call
       const { default: SpotifyWebApi } = await import("spotify-web-api-js");
       const spotifyApi = new SpotifyWebApi();
@@ -173,6 +181,30 @@
             type="text"
             bind:value={expiresIn}
             placeholder="3600"
+            class="bg-[#bebebe] w-full py-2 pl-2 outline-none text-[#121212] text-base"
+          />
+        </div>
+        <div class="flex flex-col gap-2 font-[400]">
+          <label for="direct-client-id" class="text-[#767676] text-sm"
+            >Client ID (for token refresh)</label
+          >
+          <input
+            id="direct-client-id"
+            type="text"
+            bind:value={spotifyClientId}
+            placeholder="Enter your client ID (optional)"
+            class="bg-[#bebebe] w-full py-2 pl-2 outline-none text-[#121212] text-base"
+          />
+        </div>
+        <div class="flex flex-col gap-2 font-[400]">
+          <label for="direct-client-secret" class="text-[#767676] text-sm"
+            >Client Secret (for token refresh)</label
+          >
+          <input
+            id="direct-client-secret"
+            type="password"
+            bind:value={spotifyClientSecret}
+            placeholder="Enter your client secret (optional)"
             class="bg-[#bebebe] w-full py-2 pl-2 outline-none text-[#121212] text-base"
           />
         </div>

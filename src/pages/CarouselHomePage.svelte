@@ -224,6 +224,12 @@
   }
   
   onMount(() => {
+    // Reset all animation states to ensure consistent animation on every mount
+    hasAnimated = false;
+    titleHasAnimated = false;
+    carouselHasAnimated = false;
+    entryAnimationComplete = false;
+    
     // Use requestAnimationFrame to ensure DOM is ready
     requestAnimationFrame(() => {
       updateContainerWidth();
@@ -233,8 +239,10 @@
         offsetX = 0;
       }
       
-      // Trigger carousel animation first (starts immediately)
+      // Use a small delay to ensure DOM is fully ready, then trigger animations
+      // This ensures consistent timing whether it's initial load or back navigation
       setTimeout(() => {
+        // Trigger carousel animation first (starts immediately)
         carouselHasAnimated = true;
         hasAnimated = true;
         // Mark entry animation as complete after the full 0.8s duration

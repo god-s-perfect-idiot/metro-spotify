@@ -1,7 +1,7 @@
 <script>
 	import { router, currentRoute } from '../lib/router.js';
 	import { onMount } from 'svelte';
-	import { browser } from '../lib/browser.js';
+	import { browser, getPlayerId } from '../lib/browser.js';
 	import { accountsStore } from '../store/accounts.js';
 	import { musicStore } from '../store/music.js';
 	import { addToast } from '../store/toast.js';
@@ -80,8 +80,18 @@
 			const devices = await spotifyApi.getMyDevices();
 			const availableDevices = devices.devices || [];
 
+			// Get player ID to match the correct device for this tab
+			const playerId = getPlayerId();
 			const metroPlayer = availableDevices.find(
-				(device) => device.name === 'Metro Spotify'
+				(device) => {
+					if (playerId) {
+						// Match device name that starts with "Metro Spotify" and contains the player ID
+						return device.name === `Metro Spotify (${playerId})` || device.name.startsWith('Metro Spotify');
+					} else {
+						// Fallback to exact match or pattern match if no player ID
+						return device.name === 'Metro Spotify' || device.name.startsWith('Metro Spotify');
+					}
+				}
 			);
 
 			if (metroPlayer) {

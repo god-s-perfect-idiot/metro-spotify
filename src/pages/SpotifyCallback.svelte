@@ -117,6 +117,15 @@
 				
 				statusMessage = 'STORING';
 				
+				// Save client ID and secret to localStorage for easy token refresh
+				if (storedClientId) {
+					localStorage.setItem('spotify_client_id', storedClientId);
+				}
+				if (storedClientSecret) {
+					localStorage.setItem('spotify_client_secret', storedClientSecret);
+				}
+				console.log('💾 Client credentials saved to localStorage for token refresh');
+				
 				// Store authentication data
 				accountsStore.setAuth('spotify', {
 					access_token: tokenData.access_token,

@@ -76,6 +76,29 @@ class CacheManager {
     console.log('🗑️ Cleared all Spotify API caches');
   }
 
+  clearSongCaches() {
+    if (typeof window === 'undefined') return;
+    
+    const keys = Object.keys(localStorage);
+    const songCacheTypes = ['liked_songs', 'playlist_tracks', 'album_tracks', 'playlists', 'user_playlists'];
+    
+    keys.forEach(key => {
+      // Check if this key is for song/track caches
+      const isSongCache = songCacheTypes.some(type => {
+        // Match cache keys like "spotify_cache_liked_songs_..." or "spotify_cache_playlist_tracks_..."
+        const cacheKeyPattern = `${CACHE_PREFIX}${type}_`;
+        const timestampKeyPattern = `${CACHE_TIMESTAMP_PREFIX}${CACHE_PREFIX}${type}_`;
+        return key.startsWith(cacheKeyPattern) || key.startsWith(timestampKeyPattern);
+      });
+      
+      if (isSongCache) {
+        localStorage.removeItem(key);
+      }
+    });
+    
+    console.log('🗑️ Cleared all song/track and playlist caches');
+  }
+
   getCacheKey(type, params = {}) {
     // Create a unique cache key based on type and params
     const paramString = JSON.stringify(params);

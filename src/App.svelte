@@ -28,7 +28,7 @@
   import { accountsStore } from "./store/accounts.js";
   import { musicStore, currentTrack } from "./store/music.js";
   import Loader from "./components/Loader.svelte";
-  import { browser } from "./lib/browser.js";
+  import { browser, getPlayerId } from "./lib/browser.js";
 
   let route = "/";
   let spotifyPageRef = null;
@@ -281,8 +281,12 @@
         return;
       }
 
+      // Get unique player ID for this tab/instance
+      const playerId = getPlayerId();
+      const playerName = playerId ? `Metro Spotify (${playerId})` : 'Metro Spotify';
+
       const player = new window.Spotify.Player({
-        name: 'Metro Spotify',
+        name: playerName,
         getOAuthToken: async (cb) => {
           const hasToken = await accountsStore.hasValidToken('spotify');
           if (hasToken) {

@@ -5,6 +5,7 @@
   import { musicStore } from "../../store/music.js";
   import { router } from "../../lib/router.js";
   import { addToast } from "../../store/toast.js";
+  import { cacheManager } from "../../lib/cache.js";
   import Button from "../../components/Button.svelte";
   import Loader from "../../components/Loader.svelte";
 
@@ -47,7 +48,7 @@
       // Fetch user info
       const userInfo = await spotifyApi.getMe();
       username = userInfo.display_name || userInfo.id || "Spotify User";
-      
+
       // Save to localStorage for next time
       localStorage.setItem("spotify_username", username);
     } catch (error) {
@@ -87,7 +88,7 @@
 
     // Force reload accounts from storage to ensure state is fresh
     accountsStore.loadFromStorage();
-    
+
     // Wait again for reactive updates after reloading
     await tick();
 
@@ -105,6 +106,11 @@
     // This is more reliable than router.replace for authentication state changes
     window.location.href = "/";
   }
+
+  function handleClearCache() {
+    cacheManager.clearSongCaches();
+    addToast("Song cache cleared successfully");
+  }
 </script>
 
 <div
@@ -117,17 +123,26 @@
     class="flex flex-col gap-4 pb-20 mt-4 overflow-y-auto overflow-x-hidden px-4 h-full"
   >
     <div class="flex flex-col gap-1 mt-4">
-      <span class="text-lg font-[300] text-green-600">account</span>
+      <span class="text-lg font-[300] text-green-600">account data</span>
+      <span class="text-sm font-[300] text-[#a1a1a1]"
+        >Clear cached song information to free up storage or refresh data</span
+      >
+      <Button text="clear cache" onClick={handleClearCache} className="mt-2" />
+    </div>
+    <div class="flex flex-col gap-1">
+      <!-- <span class="text-lg font-[300] text-green-600">account</span> -->
       {#if username}
-        <span class="text-sm font-[300] text-[#a1a1a1]">You are currently logged in as {username}</span>
+        <span class="text-sm font-[300] text-[#a1a1a1]"
+          >You are currently logged in as {username}</span
+        >
       {:else}
         <Loader />
       {/if}
-      <Button text="Log Out" onClick={handleLogout} className="mt-2" />
+      <Button text="sign out" onClick={handleLogout} className="mt-2" />
     </div>
-    <div class="flex flex-col gap-1">
+    <div class="flex flex-col gap-1 mt-4">
       <span class="text-lg font-[300] text-green-600">about app</span>
-      <span class="text-sm font-[300] text-[#a1a1a1]">Metro Spotify v0.1.0</span
+      <span class="text-sm font-[300] text-[#a1a1a1]">Metro Spotify v0.5.0</span
       >
     </div>
   </div>

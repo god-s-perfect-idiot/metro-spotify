@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { mediaServiceBridge } from '../lib/media-service.js';
+import { getPlayerId } from '../lib/browser.js';
 
 // Music store for managing playback state
 class MusicStore {
@@ -178,10 +179,23 @@ class MusicStore {
         const devices = await this.spotifyApi.getMyDevices();
         const availableDevices = devices.devices || [];
         
-        // First, try to find by exact name "Metro Spotify"
-        let metroPlayer = availableDevices.find(
-          (device) => device.name === 'Metro Spotify'
-        );
+        // Get player ID to match the correct device for this tab
+        const playerId = getPlayerId();
+        
+        // First, try to find by player ID (exact match for this tab)
+        let metroPlayer = null;
+        if (playerId) {
+          metroPlayer = availableDevices.find(
+            (device) => device.name === `Metro Spotify (${playerId})`
+          );
+        }
+        
+        // If not found by ID, try to find by name starting with "Metro Spotify"
+        if (!metroPlayer) {
+          metroPlayer = availableDevices.find(
+            (device) => device.name === 'Metro Spotify' || device.name.startsWith('Metro Spotify')
+          );
+        }
 
         // If not found by name, look for Computer/Web Player devices (even if not active)
         // The Metro Spotify web player is a Computer type device

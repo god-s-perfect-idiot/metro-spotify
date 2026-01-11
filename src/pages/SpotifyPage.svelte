@@ -1,7 +1,7 @@
 <script>
 	import { router, currentRoute } from '../lib/router.js';
 	import { onMount, tick } from 'svelte';
-	import { browser } from '../lib/browser.js';
+	import { browser, getPlayerId } from '../lib/browser.js';
 	import { accountsStore } from '../store/accounts.js';
 	import { getAuthUrl } from '../lib/spotify-config.js';
 	import { musicStore, currentTrack, isPlaying, playbackProgress } from '../store/music.js';
@@ -176,8 +176,12 @@
 		if (!window.Spotify || !browser) return;
 
 		try {
+			// Get unique player ID for this tab/instance
+			const playerId = getPlayerId();
+			const playerName = playerId ? `Metro Spotify (${playerId})` : 'Metro Spotify';
+
 			const player = new window.Spotify.Player({
-				name: 'Metro Spotify',
+				name: playerName,
 				getOAuthToken: async (cb) => {
 					const hasToken = await accountsStore.hasValidToken('spotify');
 					if (hasToken) {
@@ -213,7 +217,8 @@
 				console.log('✅ Spotify Web Player ready with device ID:', device_id);
 				webPlayerReady = true;
 				selectedDeviceId = device_id;
-				selectedDeviceName = 'Metro Spotify';
+				const playerId = getPlayerId();
+				selectedDeviceName = playerId ? `Metro Spotify (${playerId})` : 'Metro Spotify';
 				// Immediately set the device ID in music store
 				musicStore.setSelectedDeviceId(device_id);
 				console.log('✅ Metro Spotify device ID set in music store:', device_id);
@@ -250,8 +255,18 @@
 			const devices = await spotifyApi.getMyDevices();
 			availableDevices = devices.devices || [];
 
+			// Get player ID to match the correct device
+			const playerId = getPlayerId();
 			const metroPlayer = availableDevices.find(
-				(device) => device.name === 'Metro Spotify'
+				(device) => {
+					if (playerId) {
+						// Match device name that starts with "Metro Spotify" and contains the player ID
+						return device.name === `Metro Spotify (${playerId})` || device.name.startsWith('Metro Spotify');
+					} else {
+						// Fallback to exact match if no player ID
+						return device.name === 'Metro Spotify' || device.name.startsWith('Metro Spotify');
+					}
+				}
 			);
 
 			if (metroPlayer) {
